@@ -9,8 +9,8 @@ from __future__ import print_function
 import os
 import sys
 
-import utils.util as tf_util
-from nets.nn_skeleton import ModelSkeleton
+import squeezedet.utils.util as tf_util
+from squeezedet.nets.nn_skeleton import ModelSkeleton
 import joblib
 from easydict import EasyDict as edict
 import numpy as np

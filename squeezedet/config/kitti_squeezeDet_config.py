@@ -9,7 +9,7 @@ sys.path.append(os.path.join(BASE_DIR, 'src/config/'))
 
 import numpy as np
 
-from config.config_required import base_model_config
+from squeezedet.config.config_required import base_model_config
 
 def kitti_squeezeDet_config():
     """Specify the parameters to tune below."""

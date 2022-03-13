@@ -4,7 +4,6 @@ import colorsys
 import os
 import pickle
 import struct
-import sys
 import time
 
 import cv2
@@ -14,8 +13,10 @@ import glob
 import yaml
 import pprint
 
-from squeezedet_classifier import SqueezeDetClassifier
-from utils import util
+
+from squeezedet.squeezedet_classifier import SqueezeDetClassifier
+from squeezedet.utils import util
+from nanonets_object_tracking.deepsort import deepsort_rbc
 
 possible_classes = ['S40_40_G', 'F20_20_B', 'BEARING', 'R20']
 
@@ -56,12 +57,8 @@ def visualize(frame, tracker, detections_class):
         return True
     return False
 
-def run_deep_sort(frame, out_scores, out_boxes):
-    # https://github.com/abhyantrika/nanonets_object_tracking/blob/6ea6b0bf7dd2b1b5b5b3be49e7f2c7c60cce04da/deepsort.py#L158
-    return None, None
-
 if __name__ == '__main__':
-    config_file = 'rgb_classifier_config.yaml'
+    config_file = 'squeezedet/rgb_classifier_config.yaml'
 
     if os.path.isfile(config_file):
         configs = {}
@@ -71,13 +68,16 @@ if __name__ == '__main__':
         model_config = configs['model']['squeezeDet']
         classes = configs['classes']
         colors = configs['colors']
-        model_dir = 'model'
+        model_dir = 'squeezedet/model'
 
         model = SqueezeDetClassifier(config=model_config,
                                      checkpoint_path=model_dir)
         objects = []
 
-        images = [(cv2.imread(file), file.split('/')[1]) for file in sorted(glob.glob("images/*.jpg"))]
+        images = [(cv2.imread(file), file.split('/')[1]) for file in sorted(glob.glob("data/images/*.jpg"))]
+
+        # deepsort
+        deepsort = deepsort_rbc(wt_path='nanonets_object_tracking/ckpts/model640.pt')
 
         counter = 0
         for image, file in images:
@@ -85,7 +85,7 @@ if __name__ == '__main__':
 
             detections = convert_bboxes(bboxes)
 
-            tracker,detections_class = run_deep_sort(image, probs, detections)
+            tracker, detections_class = deepsort.run_deep_sort(image, probs, detections)
 
             if_quit = visualize(image, tracker, detections_class)
 

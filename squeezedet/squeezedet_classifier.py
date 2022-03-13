@@ -10,9 +10,9 @@ import cv2
 import numpy as np
 import tensorflow as tf
 import yaml
-from config.kitti_squeezeDet_config import kitti_squeezeDet_config
-from image_classifier import ImageClassifier
-from nets.squeezeDet import SqueezeDet
+from squeezedet.config.kitti_squeezeDet_config import kitti_squeezeDet_config
+from squeezedet.image_classifier import ImageClassifier
+from squeezedet.nets.squeezeDet import SqueezeDet
 
 
 class SqueezeDetClassifier(ImageClassifier):
