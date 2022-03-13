@@ -15,7 +15,7 @@ from torch import optim
 import torch.nn.functional as F
 import cv2,pickle,sys
 
-from deepsort import *
+from nanonets_object_tracking.deepsort import *
 
 
 def get_gt(image,frame_id,gt_dict):

@@ -14,8 +14,8 @@ import torch.nn as nn
 from torch import optim
 import torch.nn.functional as F
 
-from siamese_dataloader import *
-from siamese_net import *
+from nanonets_object_tracking.siamese_dataloader import *
+from nanonets_object_tracking.siamese_net import *
 
 import nonechucks as nc
 from scipy.stats import multivariate_normal

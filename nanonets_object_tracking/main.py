@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+############################################################
+# Code for running Squeezedet with DeepSort. Just run 'python main.py' an enjoy :-).
+############################################################
+
 import colorsys
 import os
 import pickle
@@ -13,6 +17,7 @@ import glob
 import yaml
 import pprint
 
+sys.path.append('../')
 
 from squeezedet.squeezedet_classifier import SqueezeDetClassifier
 from squeezedet.utils import util
@@ -31,6 +36,8 @@ def convert_bboxes(bboxes):
         w = int(bbox[2] - bbox[0])
         h = int(bbox[3] - bbox[1])
         detections.append([x1, y1, w, h])
+    
+    return detections
 
 
 def visualize(frame, tracker, detections_class):
@@ -58,7 +65,7 @@ def visualize(frame, tracker, detections_class):
     return False
 
 if __name__ == '__main__':
-    config_file = 'squeezedet/rgb_classifier_config.yaml'
+    config_file = '../squeezedet/rgb_classifier_config.yaml'
 
     if os.path.isfile(config_file):
         configs = {}
@@ -68,16 +75,16 @@ if __name__ == '__main__':
         model_config = configs['model']['squeezeDet']
         classes = configs['classes']
         colors = configs['colors']
-        model_dir = 'squeezedet/model'
+        model_dir = '../squeezedet/model'
 
         model = SqueezeDetClassifier(config=model_config,
                                      checkpoint_path=model_dir)
         objects = []
 
-        images = [(cv2.imread(file), file.split('/')[1]) for file in sorted(glob.glob("data/images/*.jpg"))]
+        images = [(cv2.imread(file), file.split('/')[1]) for file in sorted(glob.glob("../data/images/*.jpg"))]
 
         # deepsort
-        deepsort = deepsort_rbc(wt_path='nanonets_object_tracking/ckpts/model640.pt')
+        deepsort = deepsort_rbc(wt_path='../nanonets_object_tracking/ckpts/model640.pt')
 
         counter = 0
         for image, file in images:
@@ -85,33 +92,13 @@ if __name__ == '__main__':
 
             detections = convert_bboxes(bboxes)
 
+            if detections is None:
+                print("No dets")
+                continue
+
             tracker, detections_class = deepsort.run_deep_sort(image, probs, detections)
 
             if_quit = visualize(image, tracker, detections_class)
 
             if if_quit:
                 break
-            # for i in range(len(labels)):
-            #     result = {}
-
-            #     result['name'] = classes[labels[i]]
-            #     result['probability'] = probs[i]
-            #     roi = {}
-            #     bbox = util.bbox_transform(bboxes[i])
-            #     roi['x_offset'] = int(bbox[0])
-            #     roi['y_offset'] = int(bbox[1])
-            #     roi['width'] = int(bbox[2] - bbox[0])
-            #     roi['height'] = int(bbox[3] - bbox[1])
-            #     result['roi'] = roi
-
-            #     objects.append(result)
-            #     cv2.rectangle(image, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 1)
-            #     cv2.putText(image, classes[labels[i]], (int(bbox[0]), int(bbox[3]) - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-            #                 (255, 255, 255), 1, cv2.LINE_AA)
-
-            # cv2.imwrite(os.path.join('annotated/', file), image)
-            # counter += 1
-            # #cv2.imshow('annotated', image)
-            # cv2.waitKey(0)
-            # print('\n', file)
-            # pprint.pprint(objects)

@@ -1,3 +1,7 @@
+## Update for RTT project
+Run `python main.py` if you want to run DeepSort with Squeezedet. 
+All other files as weel as following content of this README.md file is from here https://github.com/abhyantrika/nanonets_object_tracking.
+
 ## Object Tracking
 Installation: Use this command to install all the necessary packages. Note that we are using ```python3```
 

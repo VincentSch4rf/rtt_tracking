@@ -1,8 +1,9 @@
-from deep_sort.deep_sort import nn_matching
-from deep_sort.deep_sort.tracker import Tracker 
-from deep_sort.application_util import preprocessing as prep
-from deep_sort.application_util import visualization
-from deep_sort.deep_sort.detection import Detection
+from nanonets_object_tracking.deep_sort.deep_sort import nn_matching
+from nanonets_object_tracking.deep_sort.deep_sort.tracker import Tracker 
+from nanonets_object_tracking.deep_sort.application_util import preprocessing as prep
+from nanonets_object_tracking.deep_sort.application_util import visualization
+from nanonets_object_tracking.deep_sort.deep_sort.detection import Detection
+from nanonets_object_tracking.siamese_net import *
 
 import numpy as np
 
@@ -11,6 +12,11 @@ import matplotlib.pyplot as plt
 import torch
 import torchvision
 from scipy.stats import multivariate_normal
+
+######################################################################################
+# WARNING! If you run it on GPU uncomment all '.cuda()'
+# Michal
+######################################################################################
 
 def get_gaussian_mask():
 	#128 is image size
@@ -36,16 +42,16 @@ class deepsort_rbc():
 	def __init__(self,wt_path=None):
 		#loading this encoder is slow, should be done only once.
 		#self.encoder = generate_detections.create_box_encoder("deep_sort/resources/networks/mars-small128.ckpt-68577")		
-		self.encoder = torch.load(wt_path)			
+		self.encoder = torch.load(wt_path, map_location=torch.device('cpu'))			
 			
-		self.encoder = self.encoder.cuda()
+		#self.encoder = self.encoder.cuda()
 		self.encoder = self.encoder.eval()
 		print("Deep sort model loaded from path: ", wt_path)
 
 		self.metric = nn_matching.NearestNeighborDistanceMetric("cosine",.5 , 100)
 		self.tracker= Tracker(self.metric)
 
-		self.gaussian_mask = get_gaussian_mask().cuda()
+		self.gaussian_mask = get_gaussian_mask()#.cuda()
 
 
 		self.transforms = torchvision.transforms.Compose([ \
@@ -140,7 +146,7 @@ class deepsort_rbc():
 		#print(crop.shape,[xmin,ymin,xmax,ymax],frame.shape)
 
 		crop = self.transforms(crop)
-		crop = crop.cuda()
+		crop = crop#.cuda()
 
 		gaussian_mask = self.gaussian_mask
 
@@ -166,7 +172,7 @@ class deepsort_rbc():
 		detections = np.array(out_boxes)
 		#features = self.encoder(frame, detections.copy())
 
-		processed_crops = self.pre_process(frame,detections).cuda()
+		processed_crops = self.pre_process(frame,detections)#.cuda()
 		processed_crops = self.gaussian_mask * processed_crops
 
 		features = self.encoder.forward_once(processed_crops)
