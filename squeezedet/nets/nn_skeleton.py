@@ -11,9 +11,12 @@ import os
 import sys
 
 from squeezedet.utils import util as util
-from easydict import EasyDict as edict
 import numpy as np
-import tensorflow as tf
+import tensorflow
+if tensorflow.__version__.startswith("2"):
+    import tensorflow.compat.v1 as tf
+else:
+    import tensorflow as tf
 
 def _add_loss_summaries(total_loss):
     """Add summaries for losses
@@ -138,7 +141,7 @@ class ModelSkeleton:
         """Interpret NN output."""
         mc = self.mc
 
-        with tf.variable_scope('interpret_output') as scope:
+        with tf.compat.v1.variable_scope('interpret_output') as scope:
             preds = self.preds
 
             # probability

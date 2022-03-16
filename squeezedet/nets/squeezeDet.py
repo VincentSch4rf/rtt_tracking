@@ -14,7 +14,11 @@ from squeezedet.nets.nn_skeleton import ModelSkeleton
 import joblib
 from easydict import EasyDict as edict
 import numpy as np
-import tensorflow as tf
+import tensorflow
+if tensorflow.__version__.startswith("2"):
+    import tensorflow.compat.v1 as tf
+else:
+    import tensorflow as tf
 
 class SqueezeDet(ModelSkeleton):
     def __init__(self, mc):

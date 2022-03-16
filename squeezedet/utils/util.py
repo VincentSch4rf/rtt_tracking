@@ -6,7 +6,11 @@ import numpy as np
 import json
 import time
 import cv2
-import tensorflow as tf
+import tensorflow
+if tensorflow.__version__.startswith("2"):
+    import tensorflow.compat.v1 as tf
+else:
+    import tensorflow as tf
 
 def iou(box1, box2):
     """Compute the Intersection-Over-Union of two given boxes.

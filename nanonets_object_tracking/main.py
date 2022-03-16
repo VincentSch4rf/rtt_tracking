@@ -16,6 +16,12 @@ import sys
 import glob
 import yaml
 import pprint
+import tensorflow
+if tensorflow.__version__.startswith("2"):
+    import tensorflow.compat.v1 as tf
+else:
+    import tensorflow as tf
+tf.disable_v2_behavior()
 
 sys.path.append('../')
 

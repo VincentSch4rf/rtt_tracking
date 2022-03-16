@@ -8,7 +8,11 @@ import time
 
 import cv2
 import numpy as np
-import tensorflow as tf
+import tensorflow
+if tensorflow.__version__.startswith("2"):
+    import tensorflow.compat.v1 as tf
+else:
+    import tensorflow as tf
 import yaml
 from squeezedet.config.kitti_squeezeDet_config import kitti_squeezeDet_config
 from squeezedet.image_classifier import ImageClassifier
