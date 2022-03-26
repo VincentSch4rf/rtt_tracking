@@ -31,7 +31,7 @@ import argparse
 from filterpy.kalman import KalmanFilter
 
 np.random.seed(0)
-
+global_counter = 0
 
 def linear_assignment(cost_matrix):
   """
@@ -54,6 +54,7 @@ def iou_batch(bb_test, bb_gt):
   I'm assuming this refers to the coordinates of the rectangle
   Are the inputs lists of bboxes or just individual ones?
   """
+  global global_counter
   bb_gt = np.expand_dims(bb_gt, 0)    # Seems like this is converted to column vector
   bb_test = np.expand_dims(bb_test, 1)# Converted to a row vector
   
@@ -72,7 +73,8 @@ def iou_batch(bb_test, bb_gt):
   o = wh / ((bb_test[..., 2] - bb_test[..., 0]) * (bb_test[..., 3] - bb_test[..., 1])                                      
     + (bb_gt[..., 2] - bb_gt[..., 0]) * (bb_gt[..., 3] - bb_gt[..., 1]) - wh)                                              
   # I am assuming the shape would be no_of_detections x no_of_tracks
-  return(o)  
+  global_counter += 1
+  return(o)
 
 
 def convert_bbox_to_z(bbox):
@@ -298,8 +300,8 @@ class Sort(object):
     i = len(self.trackers)
     for trk in reversed(self.trackers):
         d = trk.get_state()[0]
-        if (trk.time_since_update < 1) and (trk.hit_streak >= self.min_hits or self.frame_count <= self.min_hits):
-          ret.append(np.concatenate((d,[trk.id+1])).reshape(1,-1)) # +1 as MOT benchmark requires positive
+        #if (trk.time_since_update < 5) and (trk.hit_streak >= self.min_hits or self.frame_count <= self.min_hits):
+        ret.append(np.concatenate((d,[trk.id+1])).reshape(1,-1)) # +1 as MOT benchmark requires positive
         i -= 1
         # remove dead tracklet
         if(trk.time_since_update > self.max_age):

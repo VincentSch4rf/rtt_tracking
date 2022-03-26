@@ -4,18 +4,11 @@
 # Code for running Squeezedet with DeepSort. Just run 'python main.py' an enjoy :-).
 ############################################################
 
-import colorsys
 import os
-import pickle
-import struct
-import time
-
 import cv2
-import numpy as np
 import sys
 import glob
 import yaml
-import pprint
 import tensorflow
 if tensorflow.__version__.startswith("2"):
     import tensorflow.compat.v1 as tf
@@ -29,7 +22,6 @@ from squeezedet.squeezedet_classifier import SqueezeDetClassifier
 from squeezedet.utils import util
 from nanonets_object_tracking.deepsort import deepsort_rbc
 
-possible_classes = ['S40_40_G', 'F20_20_B', 'BEARING', 'R20']
 
 def convert_bboxes(bboxes):
     detections = []

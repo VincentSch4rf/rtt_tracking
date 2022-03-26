@@ -14,8 +14,20 @@ import cv2
 import numpy as np
 import sys
 import glob
+
+import torch
 import yaml
 import pprint
+import tensorflow 
+import time
+
+from torchvision.ops import nms
+
+if tensorflow.__version__.startswith("2"):
+    import tensorflow.compat.v1 as tf
+else:
+    import tensorflow as tf
+tf.disable_v2_behavior()
 
 sys.path.append('../')
 
@@ -41,6 +53,35 @@ def convert_bboxes(bboxes, scores):
     
     return detections
 
+def nms_adapted(bboxes, scores):
+    """
+    Parameters:
+        bboxes  [list[list]]
+            Format of detections is `cwh` (x,y,w,h)
+        scores  [list]
+
+    Returns:
+        detections  ndarray
+            array of detections in `tlbr, scores` format
+    """
+    bboxes = torch.tensor(bboxes)
+
+    # Convert from tlwh -> tlbr
+    new_bboxes = torch.zeros(bboxes.size())
+    new_bboxes[:, 0] = bboxes[:, 0] - bboxes[:, 2] / 2
+    new_bboxes[:, 1] = bboxes[:, 1] - bboxes[:, 3] / 2
+    new_bboxes[:, 2] = bboxes[:, 0] + bboxes[:, 2] / 2
+    new_bboxes[:, 3] = bboxes[:, 1] + bboxes[:, 3] / 2
+
+    scores = torch.tensor(scores)
+
+    keep = nms(new_bboxes, scores, iou_threshold=0.1)
+
+    new_bboxes = new_bboxes[keep].tolist()
+    scores = scores[keep].tolist()
+
+    detections = [[new_bboxes[i][0], new_bboxes[i][1], new_bboxes[i][2], new_bboxes[i][2], scores[i]] for i in range(len(new_bboxes))]
+    return np.array(detections)
 
 # def visualize(frame, tracker, detections_class):
 #     for track in tracker.tracks:
@@ -87,6 +128,27 @@ def visualize(frame, tracks):
     return False
 
 
+def visualize_dets(frame, bboxes):
+    for bbox in bboxes:
+        # bbox = track[0:4]
+        # id_num = track[4]
+
+        # bbox[2:4] += bbox[0:2]
+        # Draw bbox from tracker.
+        cv2.rectangle(frame, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (255, 255, 255), 2)
+        # cv2.putText(frame, str(id_num), (int(bbox[0]), int(bbox[1])), 0, 5e-3 * 200, (0, 255, 0), 2)
+
+        # Draw bbox from detector. Just to compare.
+        # for det in detections_class:
+        #     bbox = det.to_tlbr()
+        #     cv2.rectangle(frame,(int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])),(255,255,0), 2)
+
+    cv2.imshow('frame', frame)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        return True
+    return False
+
 
 
 if __name__ == '__main__':
@@ -111,33 +173,36 @@ if __name__ == '__main__':
         # deepsort
         # deepsort = deepsort_rbc(wt_path='../nanonets_object_tracking/ckpts/model640.pt')
 
+        detector_rate = 5
         # SORT
         sort_tracker = Sort(max_age=3, 
-                            min_hits=3,
-                            iou_threshold=0.5)
+                            min_hits=2,
+                            iou_threshold=0.1)
 
         counter = 0
-        for image, file in images:
-            bboxes, probs, labels = model.classify(image)
+        i = 0
+        for i, (image, file) in enumerate(images):
+            print(f"Frame number {i}")
+            if i%detector_rate==0 or i%detector_rate==1 or i%detector_rate==2:
+                # Returns bboxes in cwh format
+                bboxes, probs, labels = model.classify(image)
+                # visualize_dets(image, np.array(bboxes))
 
-            detections = convert_bboxes(bboxes, probs) # [[x1,y1,w,h, scores], ...]
+                # Combines scores and bboxes, and converts to tlbr format
+                detections = nms_adapted(bboxes, probs)
+
+                visualize_dets(image, detections[:, :4])
+
+                if detections is None:
+                    print("No dets")
+                    continue
+
+                trackers = sort_tracker.update(detections)  # This returns bbox and track_id
+            else:
+                trackers = sort_tracker.update()
+            i = i+1
             
-            if detections is None:
-                print("No dets")
-                continue
-
-            detections = np.array(detections)
-            # print(type(detections), detections.shape)
-            
-            # We convert the detections from [x1,y1,w,h, scores] to [x1,y1,x2,y2, scores] format
-            detections[:, 2:4] += detections[:, 0:2]
-            # detections[:, 3] += detections[:, 1]
-
-            # tracker, detections_class = deepsort.run_deep_sort(image, probs, detections)
-            trackers = sort_tracker.update(detections)  # This returns bbox and track_id
-
             # print(type(trackers), trackers.shape, trackers)
-            if_quit = visualize(image, trackers)
-
-            if if_quit:
-                break
+            # if_quit = visualize(image, trackers)
+            # if if_quit:
+            #     break
