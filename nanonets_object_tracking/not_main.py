@@ -64,23 +64,27 @@ def nms_adapted(bboxes, scores):
         detections  ndarray
             array of detections in `tlbr, scores` format
     """
+    # Convert inputs to tensors
     bboxes = torch.tensor(bboxes)
+    scores = torch.tensor(scores)
 
-    # Convert from tlwh -> tlbr
+    # Convert from cwh -> tlbr
     new_bboxes = torch.zeros(bboxes.size())
     new_bboxes[:, 0] = bboxes[:, 0] - bboxes[:, 2] / 2
     new_bboxes[:, 1] = bboxes[:, 1] - bboxes[:, 3] / 2
     new_bboxes[:, 2] = bboxes[:, 0] + bboxes[:, 2] / 2
     new_bboxes[:, 3] = bboxes[:, 1] + bboxes[:, 3] / 2
 
-    scores = torch.tensor(scores)
-
+    # Perform NMS
     keep = nms(new_bboxes, scores, iou_threshold=0.1)
 
+    # Convert tensors back to lists
     new_bboxes = new_bboxes[keep].tolist()
     scores = scores[keep].tolist()
 
-    detections = [[new_bboxes[i][0], new_bboxes[i][1], new_bboxes[i][2], new_bboxes[i][2], scores[i]] for i in range(len(new_bboxes))]
+    # Remove bboxes masked by NMS and concatenate bboxes and scores to a single list
+    detections = [[new_bboxes[i][0], new_bboxes[i][1], new_bboxes[i][2], new_bboxes[i][3],\
+                        scores[i]] for i in range(len(new_bboxes))]
     return np.array(detections)
 
 # def visualize(frame, tracker, detections_class):
@@ -99,8 +103,7 @@ def nms_adapted(bboxes, scores):
 #         #Draw bbox from detector. Just to compare.
 #         for det in detections_class:
 #             bbox = det.to_tlbr()
-#             cv2.rectangle(frame,(int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])),(255,255,0), 2)
-    
+#             cv2.rectangle(frame,(int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])),(255,255,0), 2) 
 #     cv2.imshow('frame',frame)
    
 #     if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -108,11 +111,18 @@ def nms_adapted(bboxes, scores):
 #     return False
 
 def visualize(frame, tracks):
+    """ Function to visualize the bounding boxes returned from the tracker
+    Inputs: 
+        frame       Image ndarray
+            The frame on which the bboxes are to be visualized
+        bboxes      list[nparray]
+            Bounding boxes in 'tlbr' format
+    """
     for track in tracks:
         bbox = track[0:4]
         id_num = track[4]
 
-        #Draw bbox from tracker.
+        # Draw bbox from tracker. bbox format is 'tlbr'
         cv2.rectangle(frame, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])),(255,255,255), 2)
         cv2.putText(frame, str(id_num),(int(bbox[0]), int(bbox[1])),0, 5e-3 * 200, (0,255,0),2)
 
@@ -129,26 +139,22 @@ def visualize(frame, tracks):
 
 
 def visualize_dets(frame, bboxes):
+    """ Function to visualize the detection bounding boxes on the image
+    Inputs: 
+        frame       image ndarray
+            The frame on which the bboxes are to be visualized
+        bboxes      list[nparray]
+            Bounding boxes in 'tlbr' format
+    """
     for bbox in bboxes:
-        # bbox = track[0:4]
-        # id_num = track[4]
-
-        # bbox[2:4] += bbox[0:2]
-        # Draw bbox from tracker.
+        # Draw bboxes from the detector
         cv2.rectangle(frame, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (255, 255, 255), 2)
         # cv2.putText(frame, str(id_num), (int(bbox[0]), int(bbox[1])), 0, 5e-3 * 200, (0, 255, 0), 2)
 
-        # Draw bbox from detector. Just to compare.
-        # for det in detections_class:
-        #     bbox = det.to_tlbr()
-        #     cv2.rectangle(frame,(int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])),(255,255,0), 2)
-
     cv2.imshow('frame', frame)
-
     if cv2.waitKey(1) & 0xFF == ord('q'):
         return True
     return False
-
 
 
 if __name__ == '__main__':
@@ -170,28 +176,22 @@ if __name__ == '__main__':
 
         images = [(cv2.imread(file), file.split('/')[1]) for file in sorted(glob.glob("../data/images/*.jpg"))]
 
-        # deepsort
-        # deepsort = deepsort_rbc(wt_path='../nanonets_object_tracking/ckpts/model640.pt')
-
         detector_rate = 5
         # SORT
         sort_tracker = Sort(max_age=3, 
                             min_hits=2,
                             iou_threshold=0.1)
 
-        counter = 0
-        i = 0
+
         for i, (image, file) in enumerate(images):
-            print(f"Frame number {i}")
+            # print(f"Frame number {i}")
             if i%detector_rate==0 or i%detector_rate==1 or i%detector_rate==2:
                 # Returns bboxes in cwh format
                 bboxes, probs, labels = model.classify(image)
-                # visualize_dets(image, np.array(bboxes))
 
                 # Combines scores and bboxes, and converts to tlbr format
                 detections = nms_adapted(bboxes, probs)
-
-                visualize_dets(image, detections[:, :4])
+                # visualize_dets(image, detections[:, :4])
 
                 if detections is None:
                     print("No dets")
@@ -200,9 +200,8 @@ if __name__ == '__main__':
                 trackers = sort_tracker.update(detections)  # This returns bbox and track_id
             else:
                 trackers = sort_tracker.update()
-            i = i+1
             
-            # print(type(trackers), trackers.shape, trackers)
-            # if_quit = visualize(image, trackers)
-            # if if_quit:
-            #     break
+            # Visualize the tracking output
+            if_quit = visualize(image, trackers)
+            if if_quit:
+                break
