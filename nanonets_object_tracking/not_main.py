@@ -67,8 +67,9 @@ def visualize(frame, tracks, obj_classes):
 
 
 def callback(data):
-    image = bridge.imgmsg_to_cv2(data.images[0], "bgr8")
-    
+    #image = bridge.imgmsg_to_cv2(data.images[0], "bgr8") 
+    image = bridge.imgmsg_to_cv2(data, "bgr8")
+
     now = time.time()
     
     bboxes, probs, labels = model.classify(image)
@@ -76,13 +77,13 @@ def callback(data):
     print('Detection', detection_time)
     detections = convert_bboxes(bboxes)
 
-    if detections is None:
+    if not detections:
         print("No dets")
         return
     now = time.time()
     
     detections = np.array(detections)
-            
+    print(detections)        
     # We convert the detections from [x1,y1,w,h, scores] to [x1,y1,x2,y2, scores] format
     detections[:, 2:4] += detections[:, 0:2]
     
@@ -98,7 +99,8 @@ def listener():
     global publisher
     rospy.init_node('listener', anonymous=True)
 
-    rospy.Subscriber("/mir_perception/multimodal_object_recognition/recognizer/rgb/input/images", ImageList, callback)
+    #rospy.Subscriber("/mir_perception/multimodal_object_recognition/recognizer/rgb/input/images", ImageList, callback)
+    rospy.Subscriber("/arm_cam3d/rgb/image_raw", Image, callback)
     publisher = rospy.Publisher('/image', Image, queue_size=1)
 
     # spin() simply keeps python from exiting until this node is stopped
