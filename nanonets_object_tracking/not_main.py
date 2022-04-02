@@ -15,6 +15,8 @@ import glob
 import yaml
 import rospy
 from sensor_msgs.msg import Image
+import torch
+from torchvision.ops import nms
 
 from mas_perception_msgs.msg import ImageList
 from cv_bridge import CvBridge
@@ -64,7 +66,7 @@ def publish_annotations(frame, tracks, obj_classes):
     # return False
 
 
-def nms_adapted(bboxes, scores):
+def nms_adapted(bboxes, scores, labels):
     """
     Parameters:
         bboxes  [list[list]]
@@ -105,7 +107,7 @@ def callback(data):
     #image = bridge.imgmsg_to_cv2(data.images[0], "bgr8") 
     image = bridge.imgmsg_to_cv2(data, "bgr8")
 
-    
+    global i, j
     if j % detector_rate == 0 or j % detector_rate == 1 or j % detector_rate == 2:
         now = time.time()
         bboxes, probs, labels = model.classify(image)
@@ -116,8 +118,7 @@ def callback(data):
         # Combines scores and bboxes, and converts to tlbr format
         detections, labels = nms_adapted(bboxes, probs, labels)
 
-        global i, j
-
+        
         if not detections:
             print("No dets")
             return
