@@ -81,6 +81,8 @@ def nms_adapted(bboxes, scores, labels):
     # Convert inputs to tensors
     bboxes = torch.tensor(bboxes)
     scores = torch.tensor(scores)
+    labels = torch.tensor(labels)
+    
 
     # Convert from cwh -> tlbr
     new_bboxes = torch.zeros(bboxes.size())
@@ -95,7 +97,7 @@ def nms_adapted(bboxes, scores, labels):
     # Convert tensors back to lists
     new_bboxes = new_bboxes[keep].tolist()
     scores = scores[keep].tolist()
-    labels = labels[keep]
+    labels = labels[keep].tolist()
 
     # Remove bboxes masked by NMS and concatenate bboxes and scores to a single list
     detections = [[new_bboxes[i][0], new_bboxes[i][1], new_bboxes[i][2], new_bboxes[i][3], \
