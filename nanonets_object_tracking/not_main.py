@@ -121,7 +121,7 @@ def callback(data):
         detections, labels = nms_adapted(bboxes, probs, labels)
 
         
-        if not detections:
+        if detections is None or len(detections.shape) == 0:
             print("No dets")
             return
         
@@ -130,6 +130,7 @@ def callback(data):
     else:
         now = time.time()
         trackers, obj_classes = sort_tracker.update()
+        print(trackers)
         detection_time = time.time() - now
         print('Tracking', detection_time)
 

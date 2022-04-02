@@ -310,7 +310,7 @@ class Sort(object):
           self.labels.pop(i)
     if(len(ret)>0):
       return np.concatenate(ret), ret_labels
-    return np.empty((0,5)), None
+    return np.empty((0,5)), []
 
 def parse_args():
     """Parse input arguments."""
