@@ -300,7 +300,7 @@ class Sort(object):
     i = len(self.trackers)
     for lab, trk in zip(reversed(self.labels),reversed(self.trackers)):
         d = trk.get_state()[0]
-        if (trk.time_since_update < 1) and (trk.hit_streak >= self.min_hits or self.frame_count <= self.min_hits):
+        if (trk.time_since_update < self.max_age) and (trk.hit_streak >= self.min_hits or self.frame_count <= self.min_hits):
           ret.append(np.concatenate((d,[trk.id+1])).reshape(1,-1)) # +1 as MOT benchmark requires positive
           ret_labels.append(lab)
         i -= 1
