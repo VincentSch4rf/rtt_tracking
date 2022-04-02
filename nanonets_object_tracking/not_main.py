@@ -46,11 +46,10 @@ def convert_bboxes(bboxes):
     return detections
 
 
-def visualize(frame, tracks, obj_classes):
+def publish_annotations(frame, tracks, obj_classes):
     for track, obj_class in zip(tracks, obj_classes):
         bbox = track[0:4]
         id_num = track[4]
-
 
         #Draw bbox from tracker.
         cv2.rectangle(frame, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])),(255,255,255), 2)
@@ -59,41 +58,81 @@ def visualize(frame, tracks, obj_classes):
 
     image = bridge.cv2_to_imgmsg(frame, encoding="passthrough")
     publisher.publish(image)
-    #cv2.imshow('frame',frame)
    
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        return True
-    return False
+    # if cv2.waitKey(1) & 0xFF == ord('q'):
+    #     return True
+    # return False
+
+
+def nms_adapted(bboxes, scores):
+    """
+    Parameters:
+        bboxes  [list[list]]
+            Format of detections is `cwh` (x,y,w,h)
+        scores  [list]
+        labels  [list]
+    Returns:
+        detections  ndarray
+            array of detections in `tlbr, scores` format
+        labels  [list]
+    """
+    # Convert inputs to tensors
+    bboxes = torch.tensor(bboxes)
+    # scores = torch.tensor(scores)
+
+    # Convert from cwh -> tlbr
+    new_bboxes = torch.zeros(bboxes.size())
+    new_bboxes[:, 0] = bboxes[:, 0] - bboxes[:, 2] / 2
+    new_bboxes[:, 1] = bboxes[:, 1] - bboxes[:, 3] / 2
+    new_bboxes[:, 2] = bboxes[:, 0] + bboxes[:, 2] / 2
+    new_bboxes[:, 3] = bboxes[:, 1] + bboxes[:, 3] / 2
+
+    # Perform NMS
+    keep = nms(new_bboxes, scores, iou_threshold=0.1)
+
+    # Convert tensors back to lists
+    new_bboxes = new_bboxes[keep].tolist()
+    scores = scores[keep]#.tolist()
+    labels = labels[keep]
+
+    # Remove bboxes masked by NMS and concatenate bboxes and scores to a single list
+    detections = [[new_bboxes[i][0], new_bboxes[i][1], new_bboxes[i][2], new_bboxes[i][3], \
+                   scores[i]] for i in range(len(new_bboxes))]
+    return np.array(detections), labels
 
 
 def callback(data):
     #image = bridge.imgmsg_to_cv2(data.images[0], "bgr8") 
     image = bridge.imgmsg_to_cv2(data, "bgr8")
 
-    now = time.time()
     
-    bboxes, probs, labels = model.classify(image)
-    detection_time = time.time() - now
-    print('Detection', detection_time)
-    detections = convert_bboxes(bboxes)
+    if j % detector_rate == 0 or j % detector_rate == 1 or j % detector_rate == 2:
+        now = time.time()
+        bboxes, probs, labels = model.classify(image)
+        detection_time = time.time() - now
+        print('Detection', detection_time)
+        
+        # detections = convert_bboxes(bboxes)
+        # Combines scores and bboxes, and converts to tlbr format
+        detections, labels = nms_adapted(bboxes, probs, labels)
 
-    if not detections:
-        print("No dets")
-        return
-    now = time.time()
-    
-    detections = np.array(detections)
-    print(detections)        
-    # We convert the detections from [x1,y1,w,h, scores] to [x1,y1,x2,y2, scores] format
-    detections[:, 2:4] += detections[:, 0:2]
-    
-    trackers, obj_classes = sort_tracker.update(detections, labels)  # This returns bbox and track_id
+        global i, j
 
-    detection_time = time.time() - now
-    # print([track.track_id for track in tracker.tracks])
-    print('Tracking', detection_time)
+        if not detections:
+            print("No dets")
+            return
+        
+        now = time.time()
+        trackers, obj_classes = sort_tracker.update(detections, labels)  # This returns bbox and track_id
+    else:
+        now = time.time()
+        trackers, obj_classes = sort_tracker.update()
+        detection_time = time.time() - now
+        print('Tracking', detection_time)
 
-    if_quit = visualize(image, trackers, obj_classes)
+    publish_annotations(image, trackers, obj_classes)
+    j += 1
+
 
 def listener():
     global publisher
@@ -127,11 +166,12 @@ if os.path.isfile(config_file):
 
     # images = [(cv2.imread(file), file.split('/')[1]) for file in sorted(glob.glob("../data/images/*.jpg"))]
 
+    detector_rate = 10
     # SORT
-    sort_tracker = Sort(max_age=5, 
-            min_hits=3,
-                            iou_threshold=0.3)
-
+    sort_tracker = Sort(max_age=11,
+                        min_hits=3,
+                        iou_threshold=0.1)
+    i, j = 0, 0
 
     listener()
 else:
