@@ -154,6 +154,7 @@ class KalmanBoxTracker(object):
     self.hits = 0     # assuming this means matches
     self.hit_streak = 0
     self.age = 0
+    self.min_hits_satisfied = False
 
   def update(self,bbox):
     """
@@ -299,11 +300,13 @@ class Sort(object):
         self.trackers.append(trk)
         self.labels.append(label[i])
     i = len(self.trackers)
-    for lab, trk in zip(reversed(self.labels),reversed(self.trackers)):
+    for label, trk in zip(reversed(self.labels),reversed(self.trackers)):
         d = trk.get_state()[0]
-        if (trk.time_since_update < self.max_age) and (trk.hit_streak >= self.min_hits or self.frame_count <= self.min_hits):
+        if trk.hit_streak >= self.min_hits: # We just want the min_hits condition to be satisfied once
+          trk.min_hits_satisfied = True
+        if (trk.time_since_update < self.max_age) and (trk.min_hits_satisfied or self.frame_count <= self.min_hits):
           ret.append(np.concatenate((d,[trk.id+1])).reshape(1,-1)) # +1 as MOT benchmark requires positive
-          ret_labels.append(lab)
+          ret_labels.append(label)
         i -= 1
         # remove dead tracklet
         if(trk.time_since_update > self.max_age):
