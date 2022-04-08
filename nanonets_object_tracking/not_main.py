@@ -55,20 +55,26 @@ def convert_bboxes(bboxes, scores):
     return detections
 
 
-def nms_adapted(bboxes, scores):
+def nms_adapted(bboxes, scores, labels):
     """
     Parameters:
         bboxes  [list[list]]
             Format of detections is `cwh` (x,y,w,h)
         scores  [list]
-
+        labels  [list]
     Returns:
         detections  ndarray
             array of detections in `tlbr, scores` format
+        labels  [list]
     """
     # Convert inputs to tensors
     bboxes = torch.tensor(bboxes)
     scores = torch.tensor(scores)
+    labels = torch.tensor(labels)
+    
+    # Make sure bboxes is 2D
+    if len(bboxes.size()) < 2:
+        bboxes = bboxes.view(1, bboxes.size()[0])
 
     # Convert from cwh -> tlbr
     new_bboxes = torch.zeros(bboxes.size())
@@ -83,11 +89,12 @@ def nms_adapted(bboxes, scores):
     # Convert tensors back to lists
     new_bboxes = new_bboxes[keep].tolist()
     scores = scores[keep].tolist()
+    labels = labels[keep].tolist()
 
     # Remove bboxes masked by NMS and concatenate bboxes and scores to a single list
     detections = [[new_bboxes[i][0], new_bboxes[i][1], new_bboxes[i][2], new_bboxes[i][3], \
                    scores[i]] for i in range(len(new_bboxes))]
-    return np.array(detections)
+    return np.array(detections), labels
 
 
 # def visualize(frame, tracker, detections_class):
@@ -113,13 +120,15 @@ def nms_adapted(bboxes, scores):
 #         return True
 #     return False
 
-def visualize(frame, tracks):
+def visualize(frame, tracks, obj_classes):
     """ Function to visualize the bounding boxes returned from the tracker
     Inputs:
         frame       Image ndarray
             The frame on which the bboxes are to be visualized
-        bboxes      list[nparray]
-            Bounding boxes in 'tlbr' format
+        tracks      nd array
+            Each row has bbox coordinates and track id stored
+            Bounding boxes are in 'tlbr' format
+        obj_classes list
     """
     for track in tracks:
         bbox = track[0:4]
@@ -195,19 +204,22 @@ if __name__ == '__main__':
                 bboxes, probs, labels = model.classify(image)
 
                 # Combines scores and bboxes, and converts to tlbr format
-                detections = nms_adapted(bboxes, probs)
-                # visualize_dets(image, detections[:, :4])
+                if len(bboxes) > 0:     # We only do NMS if we have detections
+                    detections, labels = nms_adapted(bboxes, probs, labels)
+                    # visualize_dets(image, detections[:, :4])
+                else:
+                    detections, labels = np.empty((0, 5)), None
 
                 if detections is None:
                     print("No dets")
                     continue
 
-                trackers = sort_tracker.update(detections)  # This returns bbox and track_id
+                trackers, obj_classes = sort_tracker.update(detections, labels)  # This returns bbox and track_id
             else:
-                trackers = sort_tracker.update()
+                trackers, obj_classes = sort_tracker.update()
             time.sleep(0.1)
             # Visualize the tracking output
-            if_quit = visualize(image, trackers)
+            if_quit = visualize(image, trackers, obj_classes)
             j = + 1
             if if_quit:
                 break

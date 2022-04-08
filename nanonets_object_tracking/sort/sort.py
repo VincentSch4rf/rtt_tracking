@@ -164,6 +164,8 @@ class KalmanBoxTracker(object):
         self.hits = 0  # assuming this means matches
         self.hit_streak = 0
         self.age = 0
+        self.min_hits_satisfied = False     # Set to True of minimum number of detections have been associated
+
 
     def update(self, bbox):
         """
@@ -183,10 +185,10 @@ class KalmanBoxTracker(object):
     Advances the state vector and returns the predicted bounding box estimate.
     """
         if ((self.kf.x[6] + self.kf.x[2]) <= 0):  # Check if bbox is empty, i.e. no area
-            self.kf.x[6] *= 0.0  # If yes, set it to 0
-        self.kf.predict()  # Predict the next state
-        self.age += 1  # Increase age
-        if (self.time_since_update > 0):  # Reset streak if required
+            self.kf.x[6] *= 0.0             # If yes, set it to 0
+        self.kf.predict()                   # Predict the next state
+        self.age += 1                       # Increase age
+        if (self.time_since_update > 0):    # Reset streak if required
             self.hit_streak = 0
         self.time_since_update += 1
         self.history.append(convert_x_to_bbox(self.kf.x))
@@ -263,9 +265,10 @@ class Sort(object):
         self.iou_threshold = iou_threshold
         # Does this mean the IDs of the tracks?
         self.trackers = []
+        self.labels = []
         self.frame_count = 0
 
-    def update(self, dets=np.empty((0, 5))):
+    def update(self, dets=np.empty((0, 5)), label=None):
         """
     Params:
       dets - a numpy array of detections in the format [[x1,y1,x2,y2,score],[x1,y1,x2,y2,score],...]
@@ -274,11 +277,14 @@ class Sort(object):
 
     NOTE: The number of objects returned may differ from the number of detections provided.
     """
+        if label is None:
+            label = []
         self.frame_count += 1
         # get predicted locations from existing trackers.
         trks = np.zeros((len(self.trackers), 5))  # Empty place holders equal to the number of tracks
         to_del = []
         ret = []
+        ret_labels = []
         # We cycle through all the (active?) tracks
         for t, trk in enumerate(trks):
             # Predict the next position
@@ -304,19 +310,23 @@ class Sort(object):
             # print(i)
             trk = KalmanBoxTracker(dets[i])
             self.trackers.append(trk)
+            self.labels.append(label[i])
         i = len(self.trackers)
-        for trk in reversed(self.trackers):
+        for label, trk in zip(reversed(self.labels),reversed(self.trackers)):
             d = trk.get_state()[0]
-            if (trk.time_since_update < self.max_age) and (
-                    trk.hit_streak >= self.min_hits or self.frame_count <= self.min_hits):
+            if trk.hit_streak >= self.min_hits: # We just want the min_hits condition to be satisfied once
+                trk.min_hits_satisfied = True
+            if (trk.time_since_update < self.max_age) and (trk.min_hits_satisfied or self.frame_count <= self.min_hits):
                 ret.append(np.concatenate((d, [trk.id + 1])).reshape(1, -1))  # +1 as MOT benchmark requires positive
+                ret_labels.append(label)
             i -= 1
             # remove dead tracklet
             if (trk.time_since_update > self.max_age):
                 self.trackers.pop(i)
-        if (len(ret) > 0):
-            return np.concatenate(ret)
-        return np.empty((0, 5))
+                self.labels.pop(i)
+        if(len(ret)>0):
+            return np.concatenate(ret), ret_labels
+        return np.empty((0,5)), []
 
 
 def parse_args():
