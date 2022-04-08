@@ -83,6 +83,9 @@ def nms_adapted(bboxes, scores, labels):
     scores = torch.tensor(scores)
     labels = torch.tensor(labels)
     
+    # Make sure bboxes is 2D
+    if len(bboxes.size()) < 2:
+        bboxes = bboxes.view(1, bboxes.size()[0])
 
     # Convert from cwh -> tlbr
     new_bboxes = torch.zeros(bboxes.size())
