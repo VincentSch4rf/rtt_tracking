@@ -265,13 +265,14 @@ class Sort(object):
 
     NOTE: The number of objects returned may differ from the number of detections provided.
     """
+    if label is None:
+        label = []
     self.frame_count += 1
-    # get predicted locations from existing trackers.
     trks = np.zeros((len(self.trackers), 5))  # Empty place holders equal to the number of tracks
     to_del = []
     ret = []
     ret_labels = []
-    # We cycle through all the (active?) tracks
+    # We cycle through all active tracks
     for t, trk in enumerate(trks):
       # Predict the next position
       pos = self.trackers[t].predict()[0]
@@ -282,7 +283,7 @@ class Sort(object):
     trks = np.ma.compress_rows(np.ma.masked_invalid(trks))
     # So everything which has an incorrect prediction, we delete these
     for t in reversed(to_del):
-      self.trackers.pop(t)  # Remove from active tracks?
+      self.trackers.pop(t)
 
     # We then associate the detections and tracks
     matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers(dets,trks, self.iou_threshold)

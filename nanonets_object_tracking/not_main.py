@@ -109,30 +109,30 @@ def callback(data):
     #image = bridge.imgmsg_to_cv2(data.images[0], "bgr8") 
     image = bridge.imgmsg_to_cv2(data, "bgr8")
 
-    global i, j
+    global i, j, sort_tracker
     if j % detector_rate == 0 or j % detector_rate == 1 or j % detector_rate == 2:
         now = time.time()
         bboxes, probs, labels = model.classify(image)
         detection_time = time.time() - now
-        print('Detection', detection_time)
-        
+        # print('Detection', detection_time)
         # detections = convert_bboxes(bboxes)
         # Combines scores and bboxes, and converts to tlbr format
         detections, labels = nms_adapted(bboxes, probs, labels)
 
-        
         if detections is None or len(detections.shape) == 0:
             print("No dets")
             return
         
         now = time.time()
         trackers, obj_classes = sort_tracker.update(detections, labels)  # This returns bbox and track_id
+        print("with dets, No. of tracks:", len(trackers))
     else:
         now = time.time()
         trackers, obj_classes = sort_tracker.update()
-        print(trackers)
+        
+        print("No det, No. of tracks:", len(trackers))
         detection_time = time.time() - now
-        print('Tracking', detection_time)
+        # print('Tracking', detection_time)
 
     publish_annotations(image, trackers, obj_classes)
     j += 1
