@@ -195,31 +195,34 @@ if __name__ == '__main__':
                             iou_threshold=0.1)
         j = 0
         for i, (image, file) in enumerate(images):
-            # print(f"Frame number {i}")
-            # if i % 2 == 0:
-            #     continue
 
-            if j % detector_rate == 0 or j % detector_rate == 1 or j % detector_rate == 2:
+            if i % 4 != 0:
+                continue
+
+            #if j % detector_rate == 0 or j % detector_rate == 1 or j % detector_rate == 2:
                 # Returns bboxes in cwh format
-                bboxes, probs, labels = model.classify(image)
+            print(f"Frame number, global {i}")
+            bboxes, probs, labels = model.classify(image)
 
-                # Combines scores and bboxes, and converts to tlbr format
-                if len(bboxes) > 0:     # We only do NMS if we have detections
-                    detections, labels = nms_adapted(bboxes, probs, labels)
-                    # visualize_dets(image, detections[:, :4])
-                else:
-                    detections, labels = np.empty((0, 5)), None
-
-                if detections is None:
-                    print("No dets")
-                    continue
-
-                trackers, obj_classes = sort_tracker.update(detections, labels)  # This returns bbox and track_id
+            # Combines scores and bboxes, and converts to tlbr format
+            if len(bboxes) > 0:     # We only do NMS if we have detections
+                detections, labels = nms_adapted(bboxes, probs, labels)
+                # visualize_dets(image, detections[:, :4])
             else:
-                trackers, obj_classes = sort_tracker.update()
+                detections, labels = np.empty((0, 5)), None
+
+            if detections is None:
+                print("No dets")
+                continue
+
+            trackers, obj_classes = sort_tracker.update(detections, labels)  # This returns bbox and track_id
+            # else:
+            #     trackers, obj_classes = sort_tracker.update()
             time.sleep(0.1)
             # Visualize the tracking output
+
             if_quit = visualize(image, trackers, obj_classes)
-            j = + 1
+            j += 1
+
             if if_quit:
                 break
