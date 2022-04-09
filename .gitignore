@@ -296,4 +296,7 @@ cython_debug/
 
 # Support for Project snippet scope
 
+# Ignore the data folder
+data/
+
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,pycharm,python,jupyternotebooks
