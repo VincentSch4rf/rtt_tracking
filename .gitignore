@@ -294,6 +294,9 @@ cython_debug/
 .history
 .ionide
 
+# Ignore the data folder
+data/
+
 # Support for Project snippet scope
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,pycharm,python,jupyternotebooks
