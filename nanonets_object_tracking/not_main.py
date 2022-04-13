@@ -253,18 +253,18 @@ if __name__ == '__main__':
             # time.sleep(0.1)
             # Visualize the tracking output
 
-            # if_quit = visualize(image, trackers, obj_classes)
+            if_quit = visualize(image, trackers, obj_classes)
             j += 1
 
             # We store the tracking results
             # store_results(trackers)
             annotations[frame_id] = {}
             for track in trackers:
-                annotations[frame_id][int(track[4])] = [int(point) for point in track[0:4]]
+                annotations[frame_id][int(track[4])] = track[0:4].tolist()
                 # bbox format is 'tlbr'
 
-            # if if_quit:
-            #     break
+            if if_quit:
+                break
         
         # We finally write the outputs to a .json file
         with open("/".join([path_to_annotations, 'sort_outputs.json']), "w") as fp:
