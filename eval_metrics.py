@@ -24,7 +24,7 @@ def json_annot_loader(path_to_gt_annots, return_labels=False, old_format=False, 
 
         Inputs:
             path_to_gt_annots   [String]
-                                Specifies the path to annotation .json files
+                                Specifies the path to annotation folder containing .json files
             return_labels       [boolean]
                                 Sets whether the keys of the 2nd/nested dict
                                 should be the object labels, instead of the tracks
@@ -53,7 +53,8 @@ def json_annot_loader(path_to_gt_annots, return_labels=False, old_format=False, 
     gt_files = sorted([file for file in glob.glob("frame*.json")])
     gt = {}
 
-    key = 0  # Only used with old annot format
+    if old_format:
+        key = 0  # Only used with old annot format
     obj_dict = {}
     for frame in range(len(gt_files)):
         # Load the json file for each frame
@@ -65,15 +66,12 @@ def json_annot_loader(path_to_gt_annots, return_labels=False, old_format=False, 
         for dict_item in gt_frame['shapes']:
             if not old_format:
                 if not return_labels:
-                    gt[idx][int(dict_item['label'].split(" ")[-1])] = [point for sublist in dict_item['points'] for
-                                                                       point in sublist]
+                    gt[idx][int(dict_item['label'].split(" ")[-1])] = [point for sublist in dict_item['points'] for point in sublist]
                 else:
-                    gt[idx][int(dict_item['label'].split(" ")[-1])] = [point for sublist in dict_item['points'] for
-                                                                       point in sublist]
+                    gt[idx][int(dict_item['label'].split(" ")[0])] = [point for sublist in dict_item['points'] for point in sublist]
             else:
                 if reid:
-                    gt[idx][label_lookup[dict_item['label'].lower()]] = [point for sublist in dict_item['points'] for
-                                                                         point in sublist]
+                    gt[idx][label_lookup[dict_item['label'].lower()]] = [point for sublist in dict_item['points'] for point in sublist]
                 # Store each element in the list
                 else:
                     if not frame:  # i.e. the first frame
@@ -184,7 +182,7 @@ def get_mot_accum(results, gt, tlbr_to_tlwh=True):
                             Results of the tracker
         gt                  [Dict(Dict(List))]      Standard Format
                             Ground Truth annotations
-        tlbr_to_tlwh       [boolean]
+        tlbr_to_tlwh        [boolean]
                             If set to True, it converts the tracking bounding boxes
                             format from tlbr to tlwh i.e. 
                             [x1, y1, x2, y2] --> [x1, y1, width, height]
@@ -305,19 +303,21 @@ def print_metrics(accum, name):
     print(strsummary)
 
 
-if __name__ == '__main__':
-    # Loading the output file    
+if __name__ == '__main__':   
+    # Load the output file    
     path_to_outputs = "/".join([os.getcwd(), 'nanonets_object_tracking/outputs'])
-    # Loading the tracker results
+    # Load the tracker results
     sort_results = get_json_results(path_to_outputs, 'sort_outputs.json', keys_to_int=True)
     # pretty(sort_results)
     
-    # Loading the annotations
-    gt = json_annot_loader("data/annotated", old_format=True)  # , no_of_frames = len(sort_results))
+    # Load the annotations
+    # gt = json_annot_loader("data/annotated", old_format=True)
+    gt = json_annot_loader("data/annotated", old_format=False)
     # pretty(gt)
 
-    # Accumulating the tracking results
+    # Accumulate the tracking results
     mot_accum = get_mot_accum(sort_results, gt)
 
+    # Display the results
     print_metrics(mot_accum, 'SqueezeDet + SORT')
     # print(mh.list_metrics_markdown())
