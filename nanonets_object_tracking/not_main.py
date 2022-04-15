@@ -226,10 +226,12 @@ if __name__ == '__main__':
         annotations = {}
 
         j = 0
+        low_frame_rate_modulo = 4
+        
         for i, (image, frame_id) in enumerate(images):
 
-            # if i % 4 != 0:
-            #     continue
+            if i % low_frame_rate_modulo != 0:
+                continue
 
             #if j % detector_rate == 0 or j % detector_rate == 1 or j % detector_rate == 2:
                 # Returns bboxes in cwh format
