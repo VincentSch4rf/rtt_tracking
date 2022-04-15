@@ -298,5 +298,7 @@ cython_debug/
 
 # Ignore the data folder
 data/
+# Ignore the outputs folder
+nanonets_object_tracking/outputs/
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,pycharm,python,jupyternotebooks

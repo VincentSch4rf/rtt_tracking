@@ -20,6 +20,7 @@ import yaml
 import pprint
 import tensorflow
 import time
+import json
 
 from torchvision.ops import nms
 
@@ -150,6 +151,24 @@ def visualize(frame, tracks, obj_classes):
     return False
 
 
+def store_results(annots, frame_id, tracks):
+    """
+    A failed vision for a beautiful function
+    RIP :( You won't be forgotten
+    Inputs:
+        annots      Dict[Dict[list]]
+                    Stores the output
+        frame_id    int
+        tracks      nd array
+            Each row has bbox coordinates and track id stored
+            Bounding boxes are in 'tlbr' format
+    Returns:
+        annots      Dict[Dict[list]]
+                    Now updated with new frames
+    """
+    pass
+
+
 def visualize_dets(frame, bboxes):
     """ Function to visualize the detection bounding boxes on the image
     Inputs:
@@ -169,6 +188,13 @@ def visualize_dets(frame, bboxes):
     return False
 
 
+def check_and_create_path(dir_path):
+    """ Checks if a particular directory exists, if not, the directory is created
+    """
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+
+
 if __name__ == '__main__':
     config_file = '../squeezedet/rgb_classifier_config.yaml'
 
@@ -186,17 +212,25 @@ if __name__ == '__main__':
                                      checkpoint_path=model_dir)
         objects = []
 
-        images = [(cv2.imread(file), file.split('/')[1]) for file in sorted(glob.glob("../data/images/*.jpg"))]
-
+        images = [(cv2.imread(file), int(file.split('/')[-1].lstrip('frame').split('.')[0])) for file in sorted(glob.glob("../data/images/*.jpg"))]
+        # .split('/')[1]
         detector_rate = 10
         # SORT
         sort_tracker = Sort(max_age=11,
                             min_hits=3,
                             iou_threshold=0.1)
-        j = 0
-        for i, (image, file) in enumerate(images):
 
-            if i % 4 != 0:
+        # Add path and create a dict to store the output annotations
+        path_to_annotations = 'outputs'
+        check_and_create_path(path_to_annotations)
+        annotations = {}
+
+        j = 0
+        low_frame_rate_modulo = 4
+        
+        for i, (image, frame_id) in enumerate(images):
+
+            if i % low_frame_rate_modulo != 0:
                 continue
 
             #if j % detector_rate == 0 or j % detector_rate == 1 or j % detector_rate == 2:
@@ -218,11 +252,22 @@ if __name__ == '__main__':
             trackers, obj_classes = sort_tracker.update(detections, labels)  # This returns bbox and track_id
             # else:
             #     trackers, obj_classes = sort_tracker.update()
-            time.sleep(0.1)
+            # time.sleep(0.1)
             # Visualize the tracking output
 
             if_quit = visualize(image, trackers, obj_classes)
             j += 1
 
+            # We store the tracking results
+            # store_results(trackers)
+            annotations[frame_id] = {}
+            for track in trackers:
+                annotations[frame_id][int(track[4])] = track[0:4].tolist()
+                # bbox format is 'tlbr'
+
             if if_quit:
                 break
+        
+        # We finally write the outputs to a .json file
+        with open("/".join([path_to_annotations, 'sort_outputs.json']), "w") as fp:
+                json.dump(annotations,fp)
