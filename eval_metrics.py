@@ -1,3 +1,4 @@
+from matplotlib.pyplot import show
 import motmetrics as mm
 import numpy as np
 import json
@@ -18,7 +19,7 @@ def pretty(d, indent=0):
             print('\t' * (indent + 1) + str(value))
 
 
-def json_annot_loader(path_to_gt_annots, return_labels=False, old_format=False, reid=False, low_frame_rate_modulo = 0):
+def json_annot_loader(path_to_gt_annots, return_labels=False, old_format=False, reid=False, low_frame_rate_modulo = 1):
     """ Converts the json files to a dictionary containing the bounding boxes
         and labels for each` frame
 
@@ -59,9 +60,8 @@ def json_annot_loader(path_to_gt_annots, return_labels=False, old_format=False, 
         key = 0  # Only used with old annot format
     obj_dict = {}
     for frame in range(len(gt_files)):
-        if low_frame_rate_modulo != 0:
-            if frame % low_frame_rate_modulo != 0:
-                continue
+        if frame % low_frame_rate_modulo != 0:
+            continue
         # Load the json file for each frame
         with open(gt_files[frame]) as json_file:
             gt_frame = json.load(json_file)
@@ -178,6 +178,58 @@ def get_text_annots(file_name, frame_limit=300):
             tr_results[line[0]][line[1]] = line[2:6]
     return tr_results
 
+
+def check_incorrect_format(dataset):
+    """
+    Function to check the format of the data
+    Expects the bboxes to be in the format [x1, y1, x2, y2]
+    Inputs:
+        dataset     [Dict(Dict(List))]      Standard Format
+                    - The keys of the first dict denote the frame number
+                    - The keys of second dict denote the object label
+                    - Finally the list contains the bounding box coordinates
+    """
+    count, tlbr, brtl, bltr, trbl = 0, 0, 0, 0, 0
+    for frame in dataset.keys():
+        for track, coords in dataset[frame].items():
+            # w, h = coords[2]-coords[0], coords[3] - coords[1]
+            # if w < 0 or h < 0:
+            #     if show_output:
+            #         print(f"Error at frame {frame}: Track {track} width is {w} and height is {h}")
+            #     else:
+            #         print("Negative values detected")
+            count += 1
+            if coords[0] < coords[2] and coords[1] < coords[3]:
+                tlbr += 1
+            if coords[0] > coords[2] and coords[1] > coords[3]:
+                brtl += 1
+            if coords[0] < coords[2] and coords[1] > coords[3]:
+                bltr += 1
+            if coords[0] > coords[2] and coords[1] < coords[3]:
+                trbl += 1
+    print(f"Instances of format found\nTLBR: {tlbr}\nBRTL: {brtl}\nBLTR: {bltr}\nTRBL: {trbl}\nTOTAL: {count} = {tlbr+brtl+bltr+trbl}")
+            
+
+def correct_input_format(dataset):
+    """
+    Function to convert all bboxes in dataset to 'tlbr' format
+    Expects the bboxes to be in the format [x1, y1, x2, y2]
+    Inputs:
+        dataset     [Dict(Dict(List))]      Standard Format
+                    - The keys of the first dict denote the frame number
+                    - The keys of second dict denote the object label
+                    - Finally the list contains the bounding box coordinates
+    """
+    for frame in dataset.keys():
+        for track, coords in dataset[frame].items():
+            if coords[0] > coords[2] and coords[1] > coords[3]: # BRTL format
+                dataset[frame][track] = [coords[2], coords[3], coords[0], coords[1]]
+            elif coords[0] < coords[2] and coords[1] > coords[3]: # BLTR format
+                dataset[frame][track] = [coords[0], coords[3], coords[2], coords[1]]
+            elif coords[0] > coords[2] and coords[1] < coords[3]: # TRBL format
+                dataset[frame][track] = [coords[2], coords[1], coords[0], coords[3]]
+            else: #TLBR format
+                pass
 
 def get_mot_accum(results, gt, tlbr_to_tlwh=True):
     """ The function is called after the entire tracking process is done
@@ -317,8 +369,12 @@ if __name__ == '__main__':
     
     # Load the annotations
     # gt = json_annot_loader("data/annotated", old_format=True)
-    gt = json_annot_loader("data/annotated", old_format=False, low_frame_rate_modulo=4)
+    gt = json_annot_loader("data/annotated", old_format=False, low_frame_rate_modulo=1)
     # pretty(gt)
+
+    # check_incorrect_format(gt)
+    correct_input_format(gt)
+    # check_incorrect_format(gt)
 
     # Accumulate the tracking results
     mot_accum = get_mot_accum(sort_results, gt)
