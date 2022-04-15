@@ -18,7 +18,7 @@ def pretty(d, indent=0):
             print('\t' * (indent + 1) + str(value))
 
 
-def json_annot_loader(path_to_gt_annots, return_labels=False, old_format=False, reid=False):
+def json_annot_loader(path_to_gt_annots, return_labels=False, old_format=False, reid=False, low_frame_rate_modulo = 0):
     """ Converts the json files to a dictionary containing the bounding boxes
         and labels for each` frame
 
@@ -32,6 +32,8 @@ def json_annot_loader(path_to_gt_annots, return_labels=False, old_format=False, 
                                 Temporary variable, sets the annotation format to the older version
             reid                [boolean]
                                 Associated with the old annotation format, which evaluates for reID cases
+            low_frame_rate_modulo   [int]
+                                    Specifically used for simulating frame rate.
         
         Returns
             gt                  [Dict(Dict(List))]
@@ -57,6 +59,9 @@ def json_annot_loader(path_to_gt_annots, return_labels=False, old_format=False, 
         key = 0  # Only used with old annot format
     obj_dict = {}
     for frame in range(len(gt_files)):
+        if low_frame_rate_modulo != 0:
+            if frame % low_frame_rate_modulo != 0:
+                continue
         # Load the json file for each frame
         with open(gt_files[frame]) as json_file:
             gt_frame = json.load(json_file)
@@ -312,7 +317,7 @@ if __name__ == '__main__':
     
     # Load the annotations
     # gt = json_annot_loader("data/annotated", old_format=True)
-    gt = json_annot_loader("data/annotated", old_format=False)
+    gt = json_annot_loader("data/annotated", old_format=False, low_frame_rate_modulo=4)
     # pretty(gt)
 
     # Accumulate the tracking results
