@@ -4,6 +4,7 @@ import numpy as np
 import json
 import glob
 import os
+import argparse
 
 
 def pretty(d, indent=0):
@@ -19,7 +20,7 @@ def pretty(d, indent=0):
             print('\t' * (indent + 1) + str(value))
 
 
-def json_annot_loader(path_to_gt_annots, return_labels=False, old_format=False, reid=False, low_frame_rate_modulo = 1):
+def json_annot_loader(path_to_gt_annots, low_frame_rate_modulo, return_labels=False, old_format=False, reid=False):
     """ Converts the json files to a dictionary containing the bounding boxes
         and labels for each` frame
 
@@ -231,6 +232,7 @@ def correct_input_format(dataset):
             else: #TLBR format
                 pass
 
+
 def get_mot_accum(results, gt, tlbr_to_tlwh=True):
     """ The function is called after the entire tracking process is done
 
@@ -360,7 +362,20 @@ def print_metrics(accum, name):
     print(strsummary)
 
 
-if __name__ == '__main__':   
+def parse_args():
+    """ Parse command line arguments.
+    """
+    parser = argparse.ArgumentParser(description="Eval Code")
+    parser.add_argument(
+        "--low_frame_rate_modulo", help="Sets the number of frames to be skipped. "
+        "This is used to simulate low frame rates, by skipping n frames",
+        default=1, type=int)
+
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    args = parse_args()
     # Load the output file    
     path_to_outputs = "/".join([os.getcwd(), 'nanonets_object_tracking/outputs'])
     # Load the tracker results
@@ -369,7 +384,7 @@ if __name__ == '__main__':
     
     # Load the annotations
     # gt = json_annot_loader("data/annotated", old_format=True)
-    gt = json_annot_loader("data/annotated", old_format=False, low_frame_rate_modulo=1)
+    gt = json_annot_loader("data/annotated", args.low_frame_rate_modulo, old_format=False)
     # pretty(gt)
 
     # check_incorrect_format(gt)

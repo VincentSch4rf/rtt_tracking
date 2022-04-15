@@ -21,6 +21,7 @@ import pprint
 import tensorflow
 import time
 import json
+import argparse
 
 from torchvision.ops import nms
 
@@ -195,7 +196,51 @@ def check_and_create_path(dir_path):
         os.makedirs(dir_path)
 
 
+def parse_args():
+    """ Parse command line arguments.
+    """
+    parser = argparse.ArgumentParser(description="SqueezeDet SORT")
+    parser.add_argument(
+        "--max_age", help="Set the maximum age/frames for which a track "
+        "can exist without being associated with detections.",
+        default=11, type=int)
+    parser.add_argument(
+        "--min_hits", help="Set the minimum number of consecutive detections "
+        "to be done in order for these set of detections to be considered a track.",
+        default=3, type=int)
+    parser.add_argument(
+        "--iou_threshold", help="Minimum overlap between detection and estimation bboxes "
+        "to be considered the same track.", type=float, default=0.1)
+    parser.add_argument(
+        "--low_frame_rate_modulo", help="Set the number of frames to be skipped. "
+        "This is used to simulate low frame rates, by skipping n frames",
+        default=1, type=int)
+    parser.add_argument(
+        "--display", help="Show intermediate tracking results ",
+        default='True', type=str)
+    parser.add_argument(    # Currently not used
+        "--nms", help="Parameter to set if NMS is to be performed on the bounding boxes "
+        "returned by the detector. This performs inter-class NMS Can be set to \'True\'"
+        "or \'False\''. By default it is set to \'True\'", default="True", type=str)
+    parser.add_argument(
+        "--path_to_dataset", help="Set path to dataset "
+        "default: ../data/images", default="../data/images", type=str)
+    parser.add_argument(    # Currently not used
+        "--dataset_split", help="Set the dataset split to run the tracker "
+        "default: train. Can also use \'test\'", default="train", type=str)
+    parser.add_argument(
+        "--generate_outputs", help="Select whether outputs are to be generated"
+        "or not default: True. Can also be set to \'False\'", default="True", type=str)
+    parser.add_argument(
+        "--path_to_annotations", help="Set the path to the output folder"
+        "default: outputs", default='outputs', type=str)
+
+    return parser.parse_args()
+
+
 if __name__ == '__main__':
+    args = parse_args()
+
     config_file = '../squeezedet/rgb_classifier_config.yaml'
 
     if os.path.isfile(config_file):
@@ -212,31 +257,28 @@ if __name__ == '__main__':
                                      checkpoint_path=model_dir)
         objects = []
 
-        images = [(cv2.imread(file), int(file.split('/')[-1].lstrip('frame').split('.')[0])) for file in sorted(glob.glob("../data/images/*.jpg"))]
+        images = [(cv2.imread(file), int(file.split('/')[-1].lstrip('frame').split('.')[0])) for file in sorted(glob.glob("/".join([args.path_to_dataset, "*.jpg"])))]
         # .split('/')[1]
         detector_rate = 10
         # SORT
-        sort_tracker = Sort(max_age=11,
-                            min_hits=3,
-                            iou_threshold=0.1)
+        sort_tracker = Sort(args.max_age,
+                            args.min_hits,
+                            args.iou_threshold)
 
         # Add path and create a dict to store the output annotations
-        path_to_annotations = 'outputs'
-        check_and_create_path(path_to_annotations)
+        check_and_create_path(args.path_to_annotations)
         annotations = {}
 
         j = 0
-        low_frame_rate_modulo = 4
-        
         for i, (image, frame_id) in enumerate(images):
 
-            if i % low_frame_rate_modulo != 0:
+            if i % args.low_frame_rate_modulo != 0:
                 continue
 
             #if j % detector_rate == 0 or j % detector_rate == 1 or j % detector_rate == 2:
                 # Returns bboxes in cwh format
             print(f"Frame number, global {i}")
-            bboxes, probs, labels = model.classify(image)
+            bboxes, probs, labels = model.classify(image)   # bboxes format is xywh
 
             # Combines scores and bboxes, and converts to tlbr format
             if len(bboxes) > 0:     # We only do NMS if we have detections
@@ -255,19 +297,20 @@ if __name__ == '__main__':
             # time.sleep(0.1)
             # Visualize the tracking output
 
-            if_quit = visualize(image, trackers, obj_classes)
+            if args.display == 'True':
+                if_quit = visualize(image, trackers, obj_classes)
+                if if_quit:
+                    break
             j += 1
 
             # We store the tracking results
-            # store_results(trackers)
-            annotations[frame_id] = {}
-            for track in trackers:
-                annotations[frame_id][int(track[4])] = track[0:4].tolist()
-                # bbox format is 'tlbr'
+            if args.generate_outputs == 'True':
+                annotations[frame_id] = {}
+                for track in trackers:
+                    annotations[frame_id][int(track[4])] = track[0:4].tolist()
+                    # bbox format is 'tlbr'
 
-            if if_quit:
-                break
-        
-        # We finally write the outputs to a .json file
-        with open("/".join([path_to_annotations, 'sort_outputs.json']), "w") as fp:
-                json.dump(annotations,fp)
+        if args.generate_outputs == 'True':
+            # We finally write the outputs to a .json file
+            with open("/".join([args.path_to_annotations, 'sort_outputs.json']), "w") as fp:
+                    json.dump(annotations,fp)
