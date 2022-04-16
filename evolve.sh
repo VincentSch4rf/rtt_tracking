@@ -9,11 +9,12 @@
 
 cd /home/vschar2s/bitbots/rtt_tracking || exit
 
-python ./yolov5/train.py \
+yolov5 train \
+--workers 2 \
 --img 640 \
 --batch 32 \
 --epochs 50 \
 --data atwork.yaml \
 --weights yolov5s.pt \
 --cache \
---evolve
+--evolve 300
