@@ -15,9 +15,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 import tensorflow
-import torch
 import yaml
-from torchvision.ops import nms
 
 if tensorflow.__version__.startswith("2"):
     import tensorflow.compat.v1 as tf
@@ -31,92 +29,8 @@ sys.path.append('../')
 
 from nanonets_object_tracking.yolo_detector import YoloDetector
 from squeezedet.squeezedet_classifier import SqueezeDetClassifier
-from squeezedet.utils import util
 from sort.sort import Sort
 
-# from nanonets_object_tracking.deepsort import deepsort_rbc
-
-possible_classes = ['S40_40_G', 'F20_20_B', 'BEARING', 'R20']
-
-
-def convert_bboxes(bboxes, scores):
-    detections = []
-
-    for i in range(len(bboxes)):
-        bbox = util.bbox_transform(bboxes[i])
-        x1 = int(bbox[0])
-        y1 = int(bbox[1])
-        w = int(bbox[2] - bbox[0])
-        h = int(bbox[3] - bbox[1])
-        detections.append([x1, y1, w, h, scores[i]])
-
-    return detections
-
-
-def nms_adapted(bboxes, scores, labels):
-    """
-    Parameters:
-        bboxes  [list[list]]
-            Format of detections is `cwh` (x,y,w,h)
-        scores  [list]
-        labels  [list]
-    Returns:
-        detections  ndarray
-            array of detections in `tlbr, scores` format
-        labels  [list]
-    """
-    # Convert inputs to tensors
-    bboxes = torch.tensor(bboxes)
-    scores = torch.tensor(scores)
-    labels = torch.tensor(labels)
-    
-    # Make sure bboxes is 2D
-    if len(bboxes.size()) < 2:
-        bboxes = bboxes.view(1, bboxes.size()[0])
-
-    # Convert from cwh -> tlbr
-    new_bboxes = torch.zeros(bboxes.size())
-    new_bboxes[:, 0] = bboxes[:, 0] - bboxes[:, 2] / 2
-    new_bboxes[:, 1] = bboxes[:, 1] - bboxes[:, 3] / 2
-    new_bboxes[:, 2] = bboxes[:, 0] + bboxes[:, 2] / 2
-    new_bboxes[:, 3] = bboxes[:, 1] + bboxes[:, 3] / 2
-
-    # Perform NMS
-    keep = nms(new_bboxes, scores, iou_threshold=0.1)
-
-    # Convert tensors back to lists
-    new_bboxes = new_bboxes[keep].tolist()
-    scores = scores[keep].tolist()
-    labels = labels[keep].tolist()
-
-    # Remove bboxes masked by NMS and concatenate bboxes and scores to a single list
-    detections = [[new_bboxes[i][0], new_bboxes[i][1], new_bboxes[i][2], new_bboxes[i][3],
-                   scores[i]] for i in range(len(new_bboxes))]
-    return np.array(detections), labels
-
-
-# def visualize(frame, tracker, detections_class):
-#     for track in tracker.tracks:
-#         if not track.is_confirmed() or track.time_since_update > 1:
-#             continue
-
-#         bbox = track.to_tlbr() #Get the corrected/predicted bounding box
-#         id_num = str(track.track_id) #Get the ID for the particular track.
-#         features = track.features #Get the feature vector corresponding to the detection.
-
-#         #Draw bbox from tracker.
-#         cv2.rectangle(frame, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])),(255,255,255), 2)
-#         cv2.putText(frame, str(id_num),(int(bbox[0]), int(bbox[1])),0, 5e-3 * 200, (0,255,0),2)
-
-#         #Draw bbox from detector. Just to compare.
-#         for det in detections_class:
-#             bbox = det.to_tlbr()
-#             cv2.rectangle(frame,(int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])),(255,255,0), 2)
-#     cv2.imshow('frame',frame)
-
-#     if cv2.waitKey(1) & 0xFF == ord('q'):
-#         return True
-#     return False
 
 def visualize(frame, tracks, obj_classes):
     """ Function to visualize the bounding boxes returned from the tracker

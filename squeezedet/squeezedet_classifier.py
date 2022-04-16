@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import absolute_import, division, print_function
 
-import glob
 import os
-import sys
-import time
 
 import cv2
 import numpy as np
@@ -16,7 +13,6 @@ if tensorflow.__version__.startswith("2"):
     import tensorflow.compat.v1 as tf
 else:
     import tensorflow as tf
-import yaml
 from squeezedet.config.kitti_squeezeDet_config import kitti_squeezeDet_config
 from squeezedet.image_classifier import ImageClassifier
 from squeezedet.nets.squeezeDet import SqueezeDet
