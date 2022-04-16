@@ -9,7 +9,7 @@
 
 cd /home/vschar2s/bitbots/rtt_tracking || exit
 
-yolov5 train \
+python ./yolov5/train.py \
 --workers 2 \
 --img 640 \
 --batch 32 \
