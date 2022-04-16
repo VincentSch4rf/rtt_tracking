@@ -9,6 +9,7 @@ import os
 import pickle
 import struct
 import time
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -24,6 +25,11 @@ import json
 import argparse
 
 from torchvision.ops import nms
+
+import yolov5
+from yolov5 import YOLOv5
+
+from nanonets_object_tracking.yolo_detector import YoloDetector
 
 if tensorflow.__version__.startswith("2"):
     import tensorflow.compat.v1 as tf
@@ -94,7 +100,7 @@ def nms_adapted(bboxes, scores, labels):
     labels = labels[keep].tolist()
 
     # Remove bboxes masked by NMS and concatenate bboxes and scores to a single list
-    detections = [[new_bboxes[i][0], new_bboxes[i][1], new_bboxes[i][2], new_bboxes[i][3], \
+    detections = [[new_bboxes[i][0], new_bboxes[i][1], new_bboxes[i][2], new_bboxes[i][3],
                    scores[i]] for i in range(len(new_bboxes))]
     return np.array(detections), labels
 
@@ -234,6 +240,9 @@ def parse_args():
     parser.add_argument(
         "--path_to_annotations", help="Set the path to the output folder"
         "default: outputs", default='outputs', type=str)
+    parser.add_argument(
+        "--model_path", help="Path to [YOLOv5, SqueezeNet] model", default="models/rtt_376_1280.pt", type=str
+    )
 
     return parser.parse_args()
 
@@ -251,10 +260,12 @@ if __name__ == '__main__':
         model_config = configs['model']['squeezeDet']
         classes = configs['classes']
         colors = configs['colors']
-        model_dir = '../squeezedet/model'
-
-        model = SqueezeDetClassifier(config=model_config,
-                                     checkpoint_path=model_dir)
+        p = Path(args.model_path)
+        if ".pt" in p.name:
+            model = YoloDetector(checkpoint_path=args.model_path)
+        else:
+            model = SqueezeDetClassifier(config=model_config,
+                                         checkpoint_path=args.model_path)
         objects = []
 
         images = [(cv2.imread(file), int(file.split('/')[-1].lstrip('frame').split('.')[0])) for file in sorted(glob.glob("/".join([args.path_to_dataset, "*.jpg"])))]
@@ -278,24 +289,9 @@ if __name__ == '__main__':
             #if j % detector_rate == 0 or j % detector_rate == 1 or j % detector_rate == 2:
                 # Returns bboxes in cwh format
             print(f"Frame number, global {i}")
-            bboxes, probs, labels = model.classify(image)   # bboxes format is xywh
-
-            # Combines scores and bboxes, and converts to tlbr format
-            if len(bboxes) > 0:     # We only do NMS if we have detections
-                detections, labels = nms_adapted(bboxes, probs, labels)
-                # visualize_dets(image, detections[:, :4])
-            else:
-                detections, labels = np.empty((0, 5)), None
-
-            if detections is None:
-                print("No dets")
-                continue
-
+            bboxes, scores, labels = model.classify(image) # bboxes format is tlbr
+            detections = np.hstack((bboxes, np.atleast_2d(scores)))
             trackers, obj_classes = sort_tracker.update(detections, labels)  # This returns bbox and track_id
-            # else:
-            #     trackers, obj_classes = sort_tracker.update()
-            # time.sleep(0.1)
-            # Visualize the tracking output
 
             if args.display == 'True':
                 if_quit = visualize(image, trackers, obj_classes)
