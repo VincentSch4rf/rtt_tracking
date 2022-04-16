@@ -9,6 +9,9 @@ import time
 import cv2
 import numpy as np
 import tensorflow
+
+from squeezedet.utils import util
+
 if tensorflow.__version__.startswith("2"):
     import tensorflow.compat.v1 as tf
 else:
@@ -66,7 +69,7 @@ class SqueezeDetClassifier(ImageClassifier):
 
         return image
     
-    def classify(self, image):
+    def classify(self, image, iou_thresh=0.6):
         """
         Detect and classify image
 
@@ -89,8 +92,20 @@ class SqueezeDetClassifier(ImageClassifier):
         keep_idx    = [idx for idx in range(len(probs)) \
                          if probs[idx] > self.squeezedet_config.PLOT_PROB_THRESH]
 
-        keep_boxes = [boxes[idx] for idx in keep_idx]
-        keep_probs = [probs[idx] for idx in keep_idx]
-        keep_classes = [classes[idx] for idx in keep_idx]
-        
-        return keep_boxes, keep_probs, keep_classes
+        keep_boxes = np.array([boxes[idx] for idx in keep_idx])
+        keep_probs = np.array([probs[idx] for idx in keep_idx])
+        keep_classes = np.array([classes[idx] for idx in keep_idx])
+
+        keep_idx = util.nms(np.array(keep_boxes), np.array(keep_probs), threshold=iou_thresh)
+
+        keep_boxes = keep_boxes[keep_idx]
+        keep_probs = keep_probs[keep_idx]
+        keep_classes = keep_classes[keep_idx]
+
+        new_boxes = np.zeros(keep_boxes.shape)
+        new_boxes[:, 0] = keep_boxes[:, 0] - keep_boxes[:, 2] / 2
+        new_boxes[:, 1] = keep_boxes[:, 1] - keep_boxes[:, 3] / 2
+        new_boxes[:, 2] = keep_boxes[:, 0] + keep_boxes[:, 2] / 2
+        new_boxes[:, 3] = keep_boxes[:, 1] + keep_boxes[:, 3] / 2
+
+        return new_boxes, keep_probs, keep_classes
