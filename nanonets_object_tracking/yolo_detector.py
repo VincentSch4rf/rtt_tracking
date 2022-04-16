@@ -7,7 +7,7 @@ class YoloDetector(ImageClassifier):
 
     def __init__(self, **kwargs):
         super(YoloDetector, self).__init__(**kwargs)
-        self.model = YOLOv5(self.checkpoint_path, device='cpu', agnostic=True)
+        self.model = YOLOv5(self.checkpoint_path, device='cpu', agnostic=True, fp16=True)
 
     def classify(self, image):
         preds = self.model.predict(image).pred[0]

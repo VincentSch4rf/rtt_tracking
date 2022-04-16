@@ -108,4 +108,4 @@ class SqueezeDetClassifier(ImageClassifier):
         new_boxes[:, 2] = keep_boxes[:, 0] + keep_boxes[:, 2] / 2
         new_boxes[:, 3] = keep_boxes[:, 1] + keep_boxes[:, 3] / 2
 
-        return new_boxes, keep_probs, keep_classes
+        return new_boxes, keep_probs[..., np.newaxis], keep_classes

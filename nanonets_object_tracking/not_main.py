@@ -4,44 +4,34 @@
 # Code for running Squeezedet with DeepSort. Just run 'python main.py' an enjoy :-).
 ############################################################
 
-import colorsys
+import argparse
+import glob
+import json
 import os
-import pickle
-import struct
+import sys
 import time
 from pathlib import Path
 
 import cv2
 import numpy as np
-import sys
-import glob
-
+import tensorflow
 import torch
 import yaml
-import pprint
-import tensorflow
-import time
-import json
-import argparse
-
 from torchvision.ops import nms
-
-import yolov5
-from yolov5 import YOLOv5
-
-from nanonets_object_tracking.yolo_detector import YoloDetector
 
 if tensorflow.__version__.startswith("2"):
     import tensorflow.compat.v1 as tf
+    tf.disable_v2_behavior()
 else:
     import tensorflow as tf
-tf.disable_v2_behavior()
+
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 sys.path.append('../')
 
+from nanonets_object_tracking.yolo_detector import YoloDetector
 from squeezedet.squeezedet_classifier import SqueezeDetClassifier
 from squeezedet.utils import util
-from sort import sort
 from sort.sort import Sort
 
 # from nanonets_object_tracking.deepsort import deepsort_rbc
@@ -269,8 +259,8 @@ if __name__ == '__main__':
         objects = []
 
         images = [(cv2.imread(file), int(file.split('/')[-1].lstrip('frame').split('.')[0])) for file in sorted(glob.glob("/".join([args.path_to_dataset, "*.jpg"])))]
-        # .split('/')[1]
-        detector_rate = 10
+
+        # detector_rate = 10
         # SORT
         sort_tracker = Sort(args.max_age,
                             args.min_hits,
@@ -281,6 +271,7 @@ if __name__ == '__main__':
         annotations = {}
 
         j = 0
+        timings = []
         for i, (image, frame_id) in enumerate(images):
 
             if i % args.low_frame_rate_modulo != 0:
@@ -289,8 +280,11 @@ if __name__ == '__main__':
             #if j % detector_rate == 0 or j % detector_rate == 1 or j % detector_rate == 2:
                 # Returns bboxes in cwh format
             print(f"Frame number, global {i}")
+            start = time.time()
             bboxes, scores, labels = model.classify(image) # bboxes format is tlbr
-            detections = np.hstack((bboxes, np.atleast_2d(scores)))
+            stop = time.time()
+            timings.append(stop - start)
+            detections = np.hstack((bboxes, scores))
             trackers, obj_classes = sort_tracker.update(detections, labels)  # This returns bbox and track_id
 
             if args.display == 'True':
@@ -310,3 +304,4 @@ if __name__ == '__main__':
             # We finally write the outputs to a .json file
             with open("/".join([args.path_to_annotations, 'sort_outputs.json']), "w") as fp:
                     json.dump(annotations,fp)
+        print(f"Average Inference Time: {sum(timings)/len(timings)}")
