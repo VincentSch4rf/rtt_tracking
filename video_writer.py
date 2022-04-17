@@ -1,75 +1,60 @@
 import logging
 import os
-from pathlib import Path
-
+import re
 import time
+from pathlib import Path
 from typing import Optional, Tuple
 
-from watchdog.observers import Observer
-from watchdog.events import PatternMatchingEventHandler
-
 import cv2
-import numpy as np
+from inotify_simple import INotify, flags
 
+logging.basicConfig(level=logging.INFO)
 
 class VideoWriterMp4:
 
-    LOGGER = logging.getLogger(__name__)
-    LOGGER.setLevel(logging.INFO)
-
     def __init__(self, name: str, fps: int, source: str, resolution: Optional[Tuple[int, int]] = None):
+        self.LOGGER = logging.getLogger(self.__class__.__name__)
+        self.LOGGER.setLevel(logging.INFO)
         self.name = Path(name).with_suffix('.mp4')
         self.resolution = resolution
         self._fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         self._fps = fps
+        self.source = source
         if self.resolution is None:
             self.__out = None
         else:
             self.__out = cv2.VideoWriter(self.name, self._fourcc, self._fps, self.resolution)
 
-        self.__patterns = ["*.jpg", "*.jpeg"]
-        self.__ignore_patterns = None
-        self.__event_handler = PatternMatchingEventHandler(self.__patterns, self.__ignore_patterns,
-                                                           ignore_directories=True, case_sensitive=True)
-        self.__init_event_handler()
-
-        self.__observer = Observer()
-        self.__observer.schedule(self.__event_handler, source, recursive=False)
-
-    def __init_event_handler(self):
-        self.__event_handler.on_created = self.on_created
-        self.__event_handler.on_deleted = self.on_deleted
-        self.__event_handler.on_modified = self.on_modified
-        self.__event_handler.on_moved = self.on_moved
+        self.__patterns = [r".*\.jpg", r".*\.jpeg"]
+        self.__inotify = INotify()
+        watch_flags = flags.CREATE
+        self.watch_descriptor = self.__inotify.add_watch(self.source, watch_flags)
 
     def on_created(self, event):
-        self.LOGGER.info(f"add {event.src_path} to {self.name}")
-        time.sleep(0.2)
-        img = cv2.imread(event.src_path)
-        if self.__out is None:
-            self.resolution = img.shape[:2][::-1]
-            self.__out = cv2.VideoWriter(str(self.name.absolute()), self._fourcc, self._fps, self.resolution)
-        self.__out.write(img)
-
-    def on_deleted(self, event):
-        pass
-
-    def on_modified(self, event):
-        pass
-
-    def on_moved(self, event):
-        pass
+        for pattern in self.__patterns:
+            if re.match(pattern, event.name):
+                image = os.path.join(self.source, event.name)
+                self.LOGGER.info(f"add {image} to {self.name}")
+                time.sleep(0.2)
+                img = cv2.imread(image)
+                if self.__out is None:
+                    self.resolution = img.shape[:2][::-1]
+                    self.__out = cv2.VideoWriter(str(self.name.absolute()), self._fourcc, self._fps, self.resolution)
+                self.__out.write(img)
+                break
 
     def run(self):
-        self.__observer.start()
+        self.LOGGER.info("Started Video Writer MP4...")
         try:
             while True:
-                time.sleep(1)
+                for event in self.__inotify.read(read_delay=1000):
+                    for flag in flags.from_mask(event.mask):
+                        if flag == flags.CREATE:
+                            self.on_created(event)
         except KeyboardInterrupt:
-            self.__observer.stop()
-            self.__observer.join()
             cv2.destroyAllWindows()
-            self.__out.release()
+            if self.__out:
+                self.__out.release()
 
 
 if __name__ == "__main__":
