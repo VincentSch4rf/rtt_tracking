@@ -18,7 +18,7 @@ NAME=atwork_1280_50_300
 python ./yolov5/train.py \
 --workers 8 \
 --project out/evolve \
---name NAME \
+--name $NAME \
 --img 1280 \
 --batch -1 \
 --epochs 50 \
