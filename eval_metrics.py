@@ -370,6 +370,12 @@ def parse_args():
         "--low_frame_rate_modulo", help="Sets the number of frames to be skipped. "
         "This is used to simulate low frame rates, by skipping n frames",
         default=1, type=int)
+    parser.add_argument(
+        "--path_to_dataset", help="Set path to dataset, which contains images and labels"
+        " folder default: data", default="data", type=str)
+    parser.add_argument(
+        "--tracker_outputs", help="Name of tracker output file",
+        default="sort_outputs.json", type=str)
 
     return parser.parse_args()
 
@@ -379,12 +385,12 @@ if __name__ == '__main__':
     # Load the output file    
     path_to_outputs = "/".join([os.getcwd(), 'nanonets_object_tracking/outputs'])
     # Load the tracker results
-    sort_results = get_json_results(path_to_outputs, 'sort_outputs.json', keys_to_int=True)
+    tracker_results = get_json_results(path_to_outputs, args.tracker_outputs, keys_to_int=True)
     # pretty(sort_results)
     
     # Load the annotations
     # gt = json_annot_loader("data/annotated", old_format=True)
-    gt = json_annot_loader("data/labels", args.low_frame_rate_modulo, old_format=False)
+    gt = json_annot_loader("/".join([args.path_to_dataset, 'labels']), args.low_frame_rate_modulo, old_format=False)
     # pretty(gt)
 
     # check_incorrect_format(gt)
@@ -392,8 +398,8 @@ if __name__ == '__main__':
     # check_incorrect_format(gt)
 
     # Accumulate the tracking results
-    mot_accum = get_mot_accum(sort_results, gt)
+    mot_accum = get_mot_accum(tracker_results, gt)
 
     # Display the results
-    print_metrics(mot_accum, 'SqueezeDet + SORT')
+    print_metrics(mot_accum, args.tracker_outputs.split('_')[0]+' + SORT')
     # print(mh.list_metrics_markdown())
