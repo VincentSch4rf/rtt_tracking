@@ -384,7 +384,7 @@ if __name__ == '__main__':
     
     # Load the annotations
     # gt = json_annot_loader("data/annotated", old_format=True)
-    gt = json_annot_loader("data/annotated", args.low_frame_rate_modulo, old_format=False)
+    gt = json_annot_loader("data/labels", args.low_frame_rate_modulo, old_format=False)
     # pretty(gt)
 
     # check_incorrect_format(gt)
