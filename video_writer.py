@@ -29,6 +29,23 @@ class VideoWriterMp4:
         self.__inotify = INotify()
         watch_flags = flags.CREATE
         self.watch_descriptor = self.__inotify.add_watch(self.source, watch_flags)
+        self.handle_existing_content()
+
+    def handle_existing_content(self):
+        images = os.listdir(self.source)
+        if len(images) == 0:
+            return
+        self.LOGGER.info(f"Found {len(images)} existing images. Writing...")
+        for image in images:
+            self.write(os.path.join(self.source, image))
+        self.LOGGER.info("Done ✅")
+
+    def write(self, image: str):
+        img = cv2.imread(image)
+        if self.__out is None:
+            self.resolution = img.shape[:2][::-1]
+            self.__out = cv2.VideoWriter(str(self.name.absolute()), self._fourcc, self._fps, self.resolution)
+        self.__out.write(img)
 
     def on_created(self, event):
         for pattern in self.__patterns:
@@ -36,15 +53,11 @@ class VideoWriterMp4:
                 image = os.path.join(self.source, event.name)
                 self.LOGGER.info(f"add {image} to {self.name}")
                 time.sleep(0.2)
-                img = cv2.imread(image)
-                if self.__out is None:
-                    self.resolution = img.shape[:2][::-1]
-                    self.__out = cv2.VideoWriter(str(self.name.absolute()), self._fourcc, self._fps, self.resolution)
-                self.__out.write(img)
+                self.write(image)
                 break
 
     def run(self):
-        self.LOGGER.info("Started Video Writer MP4...")
+        self.LOGGER.info("Starting interactive mode...")
         try:
             while True:
                 for event in self.__inotify.read(read_delay=1000):
