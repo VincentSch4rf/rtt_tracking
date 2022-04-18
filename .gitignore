@@ -297,8 +297,8 @@ cython_debug/
 # Support for Project snippet scope
 
 # Ignore the data folder
-data/images
-data/labels
+data/images/
+data/labels/
 
 # Ignore the outputs folder
 nanonets_object_tracking/outputs/
