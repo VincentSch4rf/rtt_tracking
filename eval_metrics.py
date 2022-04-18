@@ -1,10 +1,14 @@
-from matplotlib.pyplot import show
+# from importlib.resources import path
+# from matplotlib.pyplot import show
 import motmetrics as mm
 import numpy as np
 import json
 import glob
 import os
 import argparse
+import cv2
+import time
+from tqdm import tqdm
 
 
 def pretty(d, indent=0):
@@ -53,8 +57,7 @@ def json_annot_loader(path_to_gt_annots, low_frame_rate_modulo, return_labels=Fa
               "r20", "s40_40_b", "s40_40_g"]
     label_lookup = {labels[i]: i for i in range(len(labels))}
 
-    os.chdir(path_to_gt_annots)
-    gt_files = sorted([file for file in glob.glob("frame*.json")])
+    gt_files = sorted([file for file in glob.glob('/'.join([path_to_gt_annots, "frame*.json"]))])
     gt = {}
 
     if old_format:
@@ -67,7 +70,7 @@ def json_annot_loader(path_to_gt_annots, low_frame_rate_modulo, return_labels=Fa
         with open(gt_files[frame]) as json_file:
             gt_frame = json.load(json_file)
         # Frame ID is the integer number of the frame
-        idx = int(gt_files[frame].lstrip("frame").rstrip(".json"))
+        idx = int(gt_files[frame].split('/')[-1].lstrip("frame").rstrip(".json"))
         gt[idx] = {}
         for dict_item in gt_frame['shapes']:
             if not old_format:
@@ -193,12 +196,6 @@ def check_incorrect_format(dataset):
     count, tlbr, brtl, bltr, trbl = 0, 0, 0, 0, 0
     for frame in dataset.keys():
         for track, coords in dataset[frame].items():
-            # w, h = coords[2]-coords[0], coords[3] - coords[1]
-            # if w < 0 or h < 0:
-            #     if show_output:
-            #         print(f"Error at frame {frame}: Track {track} width is {w} and height is {h}")
-            #     else:
-            #         print("Negative values detected")
             count += 1
             if coords[0] < coords[2] and coords[1] < coords[3]:
                 tlbr += 1
@@ -299,6 +296,47 @@ def get_mot_accum(results, gt, tlbr_to_tlwh=True):
 
     return mot_accum
 
+def compare_gt_and_tracks(path_to_dataset, gt, tracker_results, delay=0):
+    """
+    Function to visualize and compare GT and tracker outputs
+    Inputs:
+        path_to_dataset         str
+            Specifies path to the dataset
+        gt                      [Dict(Dict(List))]      Standard Format
+            Dict of the GT annotations
+        tracker_results         [Dict(Dict(List))]      Standard Format
+            Dict of the tracker outputs
+        delay                   int
+            time delay in seconds between frames
+    """
+    print("Displaying a comparison of tracker and ground truth annotations")
+    path_to_dataset = '/'.join([path_to_dataset, 'images'])
+
+    images = [(file, int(file.split('/')[-1].lstrip('frame').split('.')[0])) for file in sorted(glob.glob("/".join([path_to_dataset, "*.jpg"])))]
+
+    # cv2.namedWindow("frame", cv2.WINDOW_NORMAL)
+    
+    for file, frame_id in tqdm(images):
+        frame = cv2.imread(file)
+        # Plot tracker outputs
+        for track_id, bbox in tracker_results[frame_id].items():
+            # Draw bbox from tracker. bbox format is 'tlbr' Blue
+            cv2.rectangle(frame, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (239,194,31), 2)
+            cv2.putText(frame, str(track_id), (int(bbox[2]), int(bbox[1])), 0, 5e-3 * 200, (239,194,31), 2)
+        
+        # Plot gt annotations
+        for track_id, bbox in gt[frame_id].items():
+            # Draw bbox from tracker. bbox format is 'tlbr' Green
+            cv2.rectangle(frame, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
+            cv2.putText(frame, str(track_id), (int(bbox[0]), int(bbox[1])), 0, 5e-3 * 200, (0, 255, 0), 2)
+        
+        cv2.imshow('frame', frame)
+        cv2.waitKey(1)
+        time.sleep(delay)
+
+        # if cv2.waitKey(1) & 0xFF == ord('q'):
+        #     return True
+        # return False
 
 def evaluate_mot_accums(accums, names):
     """ Function to create and print the summary of the metrics
@@ -376,6 +414,9 @@ def parse_args():
     parser.add_argument(
         "--tracker_outputs", help="Name of tracker output file",
         default="sort_outputs.json", type=str)
+    parser.add_argument(
+        "--display", help="Visualize GT and tracker outputs for comparison [False, True]",
+        default="False", type=str)
 
     return parser.parse_args()
 
@@ -396,6 +437,9 @@ if __name__ == '__main__':
     # check_incorrect_format(gt)
     correct_input_format(gt)
     # check_incorrect_format(gt)
+    
+    if args.display == "True":
+        compare_gt_and_tracks(args.path_to_dataset, gt, tracker_results, delay=0.1)
 
     # Accumulate the tracking results
     mot_accum = get_mot_accum(tracker_results, gt)
