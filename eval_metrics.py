@@ -383,7 +383,7 @@ def print_metrics(accum, name):
                          name=name)
     strsummary = mm.io.render_summary(
         summary,
-        formatters={'mota': '{:.2%}'.format},
+        #formatters={'mota': '{:.2}'.format, 'motp': '{:}'.format},
         namemap={'num_frames': 'Frames',
                  'mota': 'MOTA',
                  'motp': 'MOTP',
@@ -392,12 +392,13 @@ def print_metrics(accum, name):
                  'num_false_positives': 'FP',
                  'num_misses': 'FN',
                  'num_switches': 'IDSW',
-                 'mostly_tracked': 'Mostly tracked',
-                 'partially_tracked': 'Partially tracked',
-                 'mostly_lost': 'Mostly lost',
-                 'num_unique_objects': 'Unique Objects'}
+                 'mostly_tracked': 'Mostly_tracked',
+                 'partially_tracked': 'Partially_tracked',
+                 'mostly_lost': 'Mostly_lost',
+                 'num_unique_objects': 'Unique_Objects'}
     )
-    print(strsummary)
+    # print(strsummary)
+    return strsummary
 
 
 def parse_args():
@@ -417,6 +418,9 @@ def parse_args():
     parser.add_argument(
         "--display", help="Visualize GT and tracker outputs for comparison [False, True]",
         default="False", type=str)
+    parser.add_argument(
+        "--save_eval_results", help="Select whether outputs are to be saved"
+        "or not default: True. Can also be set to \'False\'", default="True", type=str)
 
     return parser.parse_args()
 
@@ -444,6 +448,14 @@ if __name__ == '__main__':
     # Accumulate the tracking results
     mot_accum = get_mot_accum(tracker_results, gt)
 
-    # Display the results
-    print_metrics(mot_accum, args.tracker_outputs.split('_')[0]+' + SORT')
-    # print(mh.list_metrics_markdown())
+    # Display the results       +' + SORT'
+    out = print_metrics(mot_accum, args.tracker_outputs.split('_')[0]).split()
+    outputs = {}
+    print(out[:len(out)//2+1], out[len(out)//2+1:])
+    for metric, value in zip(out[:len(out)//2+1], list(map(float, out[len(out)//2+1:]))):
+        outputs[metric] = value
+    
+    if args.save_eval_results == 'True':
+        # We finally write the outputs to a .json file 
+        with open("/".join(['outputs', 'outputs', "_".join(['eval', args.tracker_outputs.split('_')[0], args.tracker_outputs.split('_')[1], str(args.low_frame_rate_modulo),'.json'])]), "w") as fp:
+                json.dump(outputs,fp)
