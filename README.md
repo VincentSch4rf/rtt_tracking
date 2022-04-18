@@ -14,4 +14,4 @@ The groundtruth annotations are stored in the `data/` folder by default.The stru
     ├── images                  # Contains the .jpg images
     └── labels                  # Contains labels, each frame has a .json file
 
-```python eval_metrics.py name_of_tracker_output_file.json```
+```python eval_metrics.py --tracker_outputs name_of_tracker_output_file.json```
