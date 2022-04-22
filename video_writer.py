@@ -1,3 +1,4 @@
+import argparse
 import logging
 import os
 import re
@@ -9,6 +10,7 @@ import cv2
 from inotify_simple import INotify, flags
 
 logging.basicConfig(level=logging.INFO)
+
 
 class VideoWriterMp4:
 
@@ -32,7 +34,7 @@ class VideoWriterMp4:
         self.handle_existing_content()
 
     def handle_existing_content(self):
-        images = os.listdir(self.source)
+        images = sorted(os.listdir(self.source))
         if len(images) == 0:
             return
         self.LOGGER.info(f"Found {len(images)} existing images. Writing...")
@@ -71,5 +73,11 @@ class VideoWriterMp4:
 
 
 if __name__ == "__main__":
-    video = VideoWriterMp4("test.mp4", 30, "data/test")
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument('path', type=str, help='the path to the directory that contains the images.')
+    parser.add_argument('video_name', type=str, help='path/name of the video.')
+    parser.add_argument('fps', type=int, help='FPS of the resulting video.')
+
+    args = parser.parse_args()
+    video = VideoWriterMp4(args.video_name, args.fps, args.path)
     video.run()
