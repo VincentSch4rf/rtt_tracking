@@ -145,7 +145,8 @@ def parse_args():
         "--path_to_annotations", help="Set the path to the output folder"
         "default: outputs", default='outputs', type=str)
     parser.add_argument(
-        "--model_path", help="Path to [YOLOv5, SqueezeNet] model", default="models/rtt_376_1280.pt", type=str
+        "--model_path", help="Path to [YOLOv5, SqueezeNet] model, SqueezeDet mode is current"
+        "stored at \'../squeezedet/model\'",default="models/rtt_376_1280.pt", type=str
     )
 
     return parser.parse_args()
@@ -167,9 +168,11 @@ if __name__ == '__main__':
         p = Path(args.model_path)
         if ".pt" in p.name:
             model = YoloDetector(checkpoint_path=args.model_path)
+            model_name = 'yolo'
         else:
             model = SqueezeDetClassifier(config=model_config,
                                          checkpoint_path=args.model_path)
+            model_name = 'squeezedet'
         objects = []
 
         images = [(cv2.imread(file), int(file.split('/')[-1].lstrip('frame').split('.')[0])) for file in sorted(glob.glob("/".join([args.path_to_dataset, "*.jpg"])))]
@@ -216,6 +219,6 @@ if __name__ == '__main__':
 
         if args.generate_outputs == 'True':
             # We finally write the outputs to a .json file
-            with open("/".join([args.path_to_annotations, 'sort_outputs.json']), "w") as fp:
+            with open("/".join([args.path_to_annotations, '_'.join([model_name, str(args.max_age), str(args.low_frame_rate_modulo), 'sort_outputs.json'])]), "w") as fp:
                     json.dump(annotations,fp)
         print(f"Average Inference Time: {sum(timings)/len(timings)}")

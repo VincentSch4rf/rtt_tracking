@@ -297,8 +297,11 @@ cython_debug/
 # Support for Project snippet scope
 
 # Ignore the data folder
-data/
+data/images/
+data/labels/
+
 # Ignore the outputs folder
 nanonets_object_tracking/outputs/
+outputs/
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,pycharm,python,jupyternotebooks
