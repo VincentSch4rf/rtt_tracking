@@ -8,7 +8,7 @@
 
 module load cuda
 
-NAME=rtt_376_1280_low_1500
+NAME=rttv3_376_1280_low_1500
 cd /home/vschar2s/bitbots/rtt_tracking || exit
 
 source /home/${USER}/.bashrc

@@ -1,0 +1,14 @@
+# Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
+path: /scratch/vschar2s/  # dataset root dir
+train: rtt_augmented/train/images  # train images (relative to 'path')
+val: rtt_augmented/valid/images  # val images (relative to 'path')
+test:  rtt_augmented/test/images
+
+# Classes
+nc: 18  # number of classes
+names: ['axis', 'bearing', 'bearing_box_ax01', 'bearing_box_ax16', 'container_box_blue', 'container_box_red',
+        'distance_tube', 'em_01', 'em_02', 'f20_20_B', 'f20_20_G', 'm20', 'm20_100', 'm30', 'motor', 'r20',
+        's40_40_B', 's40_40_G'] # class names
+
+# Download script/URL (optional)
+#download: https://ultralytics.com/assets/coco128.zip

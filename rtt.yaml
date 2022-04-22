@@ -1,8 +1,8 @@
 # Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
 path: /scratch/vschar2s/  # dataset root dir
-train: rtt/train/images  # train images (relative to 'path')
-val: rtt/valid/images  # val images (relative to 'path')
-test:  rtt/test/images
+train: rtt_v3/train/images  # train images (relative to 'path')
+val: rtt_v3/valid/images  # val images (relative to 'path')
+test:  rtt_v3/test/images
 
 # Classes
 nc: 18  # number of classes

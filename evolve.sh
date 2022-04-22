@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #SBATCH --partition=gpu
 #SBATCH --mem=180G
 #SBATCH --time=3-00:00:00
@@ -13,7 +13,9 @@ cd /home/vschar2s/bitbots/rtt_tracking || exit
 source /home/${USER}/.bashrc
 conda activate yolo
 
-NAME=atwork_1280_50_300
+NAME=rtt-augmented_1280_50_300
+
+export YOLOv5_VERBOSE=False
 
 python ./yolov5/train.py \
 --workers 8 \
@@ -22,7 +24,7 @@ python ./yolov5/train.py \
 --img 1280 \
 --batch -1 \
 --epochs 50 \
---data atwork.yaml \
+--data rtt_augmented.yaml \
 --weights yolov5s.pt \
 --cache \
 --evolve 300
