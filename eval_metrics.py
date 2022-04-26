@@ -231,6 +231,7 @@ def correct_input_format(dataset):
 
 def get_mot_accum(results, gt, tlbr_to_tlwh=True):
     """ The function is called after the entire tracking process is done
+        It calculates the relevant motmetrics and returns MOTAccumulator object
 
         Inputs:
         results             [Dict(Dict(List))]      Standard Format
@@ -407,10 +408,10 @@ def parse_args():
     parser.add_argument(
         "-t", "--tracker_outputs", help="Name of tracker output file",
          required=True, type=str)
-    parser.add_argument(
-        "--low_frame_rate_modulo", help="Sets the number of frames to be skipped. "
-        "This is used to simulate low frame rates, by skipping n frames",
-        default=1, type=int)
+    # parser.add_argument(
+    #     "--low_frame_rate_modulo", help="Sets the number of frames to be skipped. "
+    #     "This is used to simulate low frame rates, by skipping n frames",
+    #     default=1, type=int)
     parser.add_argument(
         "--path_to_dataset", help="Set path to dataset, which contains images and labels"
         " folder default: data", default="data", type=Path)
@@ -433,8 +434,11 @@ if __name__ == '__main__':
     tracker_results = get_json_results(path_to_outputs, args.tracker_outputs, keys_to_int=True)
     # pretty(sort_results)
     
+    # We can get the frame rate modulo from the tracker output file name
+    low_frame_rate_modulo = int(args.tracker_outputs.split("_")[2])
+
     # Load the annotations
-    gt = json_annot_loader((args.path_to_dataset / 'labels'), args.low_frame_rate_modulo, old_format=False)
+    gt = json_annot_loader((args.path_to_dataset / 'labels'), low_frame_rate_modulo, old_format=False)
     # pretty(gt)
 
     # check_incorrect_format(gt)
@@ -457,6 +461,6 @@ if __name__ == '__main__':
     if args.save_eval_results == 'True':
         # We finally write the outputs to a .json file
         output_file = Path('outputs') / Path('outputs')
-        output_file /= "_".join(['eval', args.tracker_outputs.split('_')[0], args.tracker_outputs.split('_')[1], str(args.low_frame_rate_modulo) + '.json'])
-        with output_file.open('w') as fp:
+        output_file /= "_".join(['eval', args.tracker_outputs.split('_')[0], args.tracker_outputs.split('_')[1], str(low_frame_rate_modulo)])
+        with output_file.with_suffix('.json').open('w') as fp:
             json.dump(outputs,fp)
