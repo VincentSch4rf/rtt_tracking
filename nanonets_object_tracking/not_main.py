@@ -145,8 +145,7 @@ def parse_args():
         "--path_to_annotations", help="Set the path to the output folder"
         "default: outputs", default='outputs', type=str)
     parser.add_argument(
-        "--model_path", help="Path to [YOLOv5, SqueezeNet] model, SqueezeDet mode is current"
-        "stored at \'../squeezedet/model\'",default="models/rtt_376_1280.pt", type=str
+        "--model_path", help="Path to [YOLOv5, SqueezeNet] model", default="models/yolo.pt", type=str
     )
 
     return parser.parse_args()
