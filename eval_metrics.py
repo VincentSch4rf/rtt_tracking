@@ -1,5 +1,3 @@
-# from importlib.resources import path
-# from matplotlib.pyplot import show
 import motmetrics as mm
 import numpy as np
 import json
@@ -9,6 +7,7 @@ import argparse
 import cv2
 import time
 from tqdm import tqdm
+from pathlib import Path
 
 
 def pretty(d, indent=0):
@@ -29,7 +28,7 @@ def json_annot_loader(path_to_gt_annots, low_frame_rate_modulo, return_labels=Fa
         and labels for each` frame
 
         Inputs:
-            path_to_gt_annots   [String]
+            path_to_gt_annots   [pathlib.Path]
                                 Specifies the path to annotation folder containing .json files
             return_labels       [boolean]
                                 Sets whether the keys of the 2nd/nested dict
@@ -57,7 +56,7 @@ def json_annot_loader(path_to_gt_annots, low_frame_rate_modulo, return_labels=Fa
               "r20", "s40_40_b", "s40_40_g"]
     label_lookup = {labels[i]: i for i in range(len(labels))}
 
-    gt_files = sorted([file for file in glob.glob('/'.join([path_to_gt_annots, "frame*.json"]))])
+    gt_files = sorted([file for file in glob.glob(str(path_to_gt_annots / "frame*.json"))])
     gt = {}
 
     if old_format:
@@ -106,7 +105,7 @@ def get_json_results(path, filename, keys_to_int=False):
     """ Fetches the stored results from .json format and converts it to a Dictionary
 
         Inputs:
-        path            [String]
+        path            [pathlib.Path]
                         Path to the results file
         filename        [String]
                         Name of the file
@@ -114,9 +113,9 @@ def get_json_results(path, filename, keys_to_int=False):
         Returns:
         tr_results      [Dict(Dict(List))]      MOT Format
     """
-    with open('/'.join((path, filename))) as json_file:
+    with (path/filename).open() as json_file:
         tr_results = json.load(json_file)
-    
+
     if keys_to_int == True:
         tr_results = {int(frame):{track_id: bbox for track_id, bbox in tracks.items()} for frame, tracks in tr_results.items()}
     return tr_results
@@ -172,7 +171,7 @@ def get_text_annots(file_name, frame_limit=300):
                             - Finally the list contains the bounding box coordinates
     """
     tr_results = {}
-    with open('/'.join((os.getcwd(), file_name)), 'r') as file:
+    with (Path.cwd() / file_name).open('r') as file:
         for line in file.readlines():
             line = list(map(int, line.split()))
             if line[0] >= frame_limit:
@@ -232,6 +231,7 @@ def correct_input_format(dataset):
 
 def get_mot_accum(results, gt, tlbr_to_tlwh=True):
     """ The function is called after the entire tracking process is done
+        It calculates the relevant motmetrics and returns MOTAccumulator object
 
         Inputs:
         results             [Dict(Dict(List))]      Standard Format
@@ -300,7 +300,7 @@ def compare_gt_and_tracks(path_to_dataset, gt, tracker_results, delay=0):
     """
     Function to visualize and compare GT and tracker outputs
     Inputs:
-        path_to_dataset         str
+        path_to_dataset         [pathlib.Path]
             Specifies path to the dataset
         gt                      [Dict(Dict(List))]      Standard Format
             Dict of the GT annotations
@@ -310,9 +310,9 @@ def compare_gt_and_tracks(path_to_dataset, gt, tracker_results, delay=0):
             time delay in seconds between frames
     """
     print("Displaying a comparison of tracker and ground truth annotations")
-    path_to_dataset = '/'.join([path_to_dataset, 'images'])
+    path_to_dataset /=  'images'
 
-    images = [(file, int(file.split('/')[-1].lstrip('frame').split('.')[0])) for file in sorted(glob.glob("/".join([path_to_dataset, "*.jpg"])))]
+    images = [(file, int(file.split('/')[-1].lstrip('frame').split('.')[0])) for file in sorted(glob.glob(str(path_to_dataset/ "*.jpg")))]
 
     # cv2.namedWindow("frame", cv2.WINDOW_NORMAL)
     
@@ -406,15 +406,15 @@ def parse_args():
     """
     parser = argparse.ArgumentParser(description="Eval Code")
     parser.add_argument(
-        "--low_frame_rate_modulo", help="Sets the number of frames to be skipped. "
-        "This is used to simulate low frame rates, by skipping n frames",
-        default=1, type=int)
+        "-t", "--tracker_outputs", help="Name of tracker output file",
+         required=True, type=str)
+    # parser.add_argument(
+    #     "--low_frame_rate_modulo", help="Sets the number of frames to be skipped. "
+    #     "This is used to simulate low frame rates, by skipping n frames",
+    #     default=1, type=int)
     parser.add_argument(
         "--path_to_dataset", help="Set path to dataset, which contains images and labels"
-        " folder default: data", default="data", type=str)
-    parser.add_argument(
-        "--tracker_outputs", help="Name of tracker output file",
-        default="sort_outputs.json", type=str)
+        " folder default: data", default="data", type=Path)
     parser.add_argument(
         "--display", help="Visualize GT and tracker outputs for comparison [False, True]",
         default="False", type=str)
@@ -427,15 +427,18 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    # Load the output file    
-    path_to_outputs = "/".join([os.getcwd(), 'nanonets_object_tracking/outputs'])
+    
+    # Load the output file 
+    path_to_outputs = Path.cwd() / 'nanonets_object_tracking/outputs'
     # Load the tracker results
     tracker_results = get_json_results(path_to_outputs, args.tracker_outputs, keys_to_int=True)
     # pretty(sort_results)
     
+    # We can get the frame rate modulo from the tracker output file name
+    low_frame_rate_modulo = int(args.tracker_outputs.split("_")[2])
+
     # Load the annotations
-    # gt = json_annot_loader("data/annotated", old_format=True)
-    gt = json_annot_loader("/".join([args.path_to_dataset, 'labels']), args.low_frame_rate_modulo, old_format=False)
+    gt = json_annot_loader((args.path_to_dataset / 'labels'), low_frame_rate_modulo, old_format=False)
     # pretty(gt)
 
     # check_incorrect_format(gt)
@@ -456,6 +459,8 @@ if __name__ == '__main__':
         outputs[metric] = value
     
     if args.save_eval_results == 'True':
-        # We finally write the outputs to a .json file 
-        with open("/".join(['outputs', 'outputs', "_".join(['eval', args.tracker_outputs.split('_')[0], args.tracker_outputs.split('_')[1], str(args.low_frame_rate_modulo),'.json'])]), "w") as fp:
-                json.dump(outputs,fp)
+        # We finally write the outputs to a .json file
+        output_file = Path('outputs') / Path('outputs')
+        output_file /= "_".join(['eval', args.tracker_outputs.split('_')[0], args.tracker_outputs.split('_')[1], str(low_frame_rate_modulo)])
+        with output_file.with_suffix('.json').open('w') as fp:
+            json.dump(outputs,fp)
